@@ -53,3 +53,11 @@ The All-in-One ICT Indicator is a comprehensive tool designed for ICT (Inner Cir
 ### Author
 Projjal K Roy GitHub: https://github.com/projjalroy Email: projjal_r@hotmail.com
 
+### Image
+#### Higher Time Frame
+![image](https://github.com/user-attachments/assets/57f8fc1f-968e-427f-8be2-a7dbb65e51dc)
+
+#### Lower Time Frame 
+![image](https://github.com/user-attachments/assets/71f32021-dd40-4efd-afdf-63f1f91e0c4f)
+
+
