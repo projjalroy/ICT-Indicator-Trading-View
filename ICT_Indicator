@@ -1,8 +1,8 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// © tradeforopp
+// © @projjalroy
 
 //@version=5
-indicator("ICT-FVG-KJ-KeyLevels-SwingPoints_FX", max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=3000, overlay=true)
+indicator("All-in-One ICT", max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=3000, overlay=true)
 
 
 // ---------------------------------------- Inputs --------------------------------------------------
