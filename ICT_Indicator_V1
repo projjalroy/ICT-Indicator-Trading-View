@@ -1,8 +1,8 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
 // © @projjalroy
 
-//@version=5.1
-// All the ICT macro time_frame has been added to this version of the indicator for the convenience of the user who have done the precise course from us. 
+//@version=6
+// All the ICT macro time_frame has been added to this version of the indicator for the convenience of the user who have done the precise course from us.
 indicator("All-in-One-ICT-v1 ", max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=3000, overlay=true)
 
 
