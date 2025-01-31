@@ -2449,12 +2449,12 @@ if barstate.islast
 
 
         var weeklyl_line = line.new(x1=weeklyl_time, x2=weeklyl_limit_right, y1=weekly_open, y2=weekly_open, color=WeeklyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
-        var weeklyl_label = label.new(x=weeklyl_limit_right, y=weekly_open, text=pwltext, style=DEFAULT_LABEL_STYLE, textcolor=WeeklyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        var weeklyl_label = label.new(x=weeklyl_limit_right, y=weeklyl_open, text=pwltext, style=DEFAULT_LABEL_STYLE, textcolor=WeeklyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
 
         line.set_x1(weeklyl_line, weeklyl_time)
         line.set_x2(weeklyl_line, weeklyl_limit_right)
-        line.set_y1(weeklyl_line, weekly_open)
-        line.set_y2(weeklyl_line, weekly_open)
+        line.set_y1(weeklyl_line, weeklyl_open)
+        line.set_y2(weeklyl_line, weeklyl_open)
         label.set_x(weeklyl_label, weeklyl_limit_right)
         label.set_y(weeklyl_label, weeklyl_open)
         label.set_text(weeklyl_label, pwltext)
@@ -2675,7 +2675,7 @@ if barstate.islast
 
 
 //////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////// QuATERLLYYYYY MID
+//////////////////////////////////////////////////////////////////////////////// QUATERLLYYYYY MID
 
     if is_quarterly_mid
         quarterlym_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
@@ -2750,7 +2750,7 @@ if barstate.islast
         // the weekly open can be the daily open too (monday)
         // only the weekly will be draw, in these case we update its label
 
-//////////////////////////////////////////////////////////////////////////////// Monthly MID
+//////////////////////////////////////////////////////////////////////////////// MONTHLY MID
 
     if is_monthly_mid
         monthlym_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
