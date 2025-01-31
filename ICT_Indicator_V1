@@ -2,7 +2,7 @@
 // © @projjalroy
 
 //@version=5
-indicator("All-in-One ICT", max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=3000, overlay=true)
+indicator("All-in-One-ICT-v1", max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=3000, overlay=true)
 
 
 // ---------------------------------------- Inputs --------------------------------------------------
@@ -3151,4 +3151,4 @@ if showNDOG and timeframe.isintraday
                 label.set_x(array.get(ndogCELabel, i), dayOpeningGap.end)
                 label.set_x(array.get(ndogLowLabel, i), dayOpeningGap.end)
 				
-//----------------------------------------------------------opening gapes intrigation---------------------------------------------
+//----------------------------------------------------------opening gapes intrigation--------------------------------------------
