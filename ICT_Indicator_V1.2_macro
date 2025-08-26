@@ -946,7 +946,7 @@ LowHighSessionDetector(On, Front_On ,Color, Text) =>
             High := math.max(high , High) 
             Low :=   math.min(low , Low)
 
-    if On > On[1] and str.tonumber(timeframe.period) <= 60
+    if On > On[1] and str.tonumber(timeframe.period) <= 16
         BoX := box.new(bar_index,High, bar_index , Low, bgcolor = color.new(Color, 85),
          border_color = color.rgb(34, 101, 155),
          border_style = line.style_dotted)
