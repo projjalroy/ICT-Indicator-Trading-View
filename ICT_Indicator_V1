@@ -870,7 +870,7 @@ Market_TimeZone_Calculator(TimeZoneMode) =>
             New_York_AM_3      := '1450-1510'
             New_York_Lunch     := '1550-1610'
             New_York_PM        := '1710-1740'
-            New_York_Last_Hour := '1915-1945'
+            New_York_Last_Hour := '1950-2000'
 
 
     else if TimeZoneMode == 'Session Local Time'  or TimeZoneMode == 'Your Time Zone'
@@ -897,7 +897,7 @@ Market_TimeZone_Calculator(TimeZoneMode) =>
             New_York_AM_3      := '1050-1110'
             New_York_Lunch     := '1150-1210'
             New_York_PM        := '1310-1340'
-            New_York_Last_Hour := '1515-1545'
+            New_York_Last_Hour := '1550-1600'
 
     [London_Macro_1, London_Macro_2, New_York_AM_1, New_York_AM_2, New_York_AM_3, New_York_Lunch, New_York_PM, New_York_Last_Hour]
 
