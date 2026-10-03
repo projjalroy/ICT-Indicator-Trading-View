@@ -1,0 +1,2924 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © @projjalroy
+
+//@version=5
+// All the ICT macro time_frame has been added to this version of the indicator for the convenience of the user who have done the precise course from us.
+indicator("All-in-One-ICT-v1.2 + RTH Gap + HTF Candles", max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=5000, overlay=true)
+
+import cryptonnnite/helpers/1 as helpers
+
+
+// ---------------------------------------- Inputs --------------------------------------------------
+var g_SETTINGS      = "Settings"
+max_days            = input.int(3, "Session Drawing Limit", 1, tooltip = "Only this many drawings will be kept on the chart, for each selected drawing type (killzone boxes, pivot lines, open lines, etc.)", group = g_SETTINGS)
+tf_limit            = input.timeframe("30", "Timeframe Limit", tooltip = "Drawings will not appear on timeframes greater than or equal to this", group = g_SETTINGS)
+gmt_tz              = input.string('GMT-5', "Timezone", options = ['GMT-12','GMT-11','GMT-10','GMT-9','GMT-8','GMT-7','GMT-6','GMT-5','GMT-4','GMT-3','GMT-2','GMT-1','GMT+0','GMT+1','GMT+2','GMT+3','GMT+4','GMT+5','GMT+6','GMT+7','GMT+8','GMT+9','GMT+10','GMT+11','GMT+12','GMT+13','GMT+14'], tooltip = "Note GMT is not adjusted to reflect Daylight Saving Time changes", group = g_SETTINGS)
+lb_size             = input.string('Normal', "Label Size", options = ['Auto', 'Tiny', 'Small', 'Normal', 'Large', 'Huge'], group = g_SETTINGS)
+lb_color            = input.color(color.black, "Label Text Color", group = g_SETTINGS)
+use_cutoff          = input.bool(true, "Drawing Cutoff Time", inline = "CO", tooltip = "When enabled, all highs and lows will stop extending after this time", group = g_SETTINGS)
+cutoff              = input.session("1200-1201", "", inline = "CO", group = g_SETTINGS)
+
+
+var g_KZ            = "Killzones"
+show_kz             = input.bool(true, "Show Killzone Boxes", inline = "KZ", group = g_KZ)
+show_kz_text        = input.bool(true, "Display Text", inline = "KZ", group = g_KZ)
+box_transparency    = input.int(70, "Box Transparency", 0, 100, group = g_KZ)
+text_transparency   = input.int(50, "Text Transparency", 0, 100, group = g_KZ)
+
+use_asia            = input.bool(true, "", inline = "ASIA", group = g_KZ)
+asia_text           = input.string("Asia", "", inline = "ASIA", group = g_KZ)
+asia                = input.session("2000-0000", "", inline = "ASIA", group = g_KZ)
+as_color            = input.color(color.blue, "", inline = "ASIA", group = g_KZ)
+
+use_london          = input.bool(true, "", inline = "LONDON", group = g_KZ)
+london_text         = input.string("London", "", inline = "LONDON", group = g_KZ)
+london              = input.session("0200-0500", "", inline = "LONDON", group = g_KZ)
+lo_color            = input.color(color.red, "", inline = "LONDON", group = g_KZ)
+
+use_nyam            = input.bool(true, "", inline = "NYAM", group = g_KZ)
+nyam_text           = input.string("NY AM", "", inline = "NYAM", group = g_KZ)
+nyam                = input.session("0700-1000", "", inline = "NYAM", group = g_KZ)
+na_color            = input.color(#089981, "", inline = "NYAM", group = g_KZ)
+
+use_nylu            = input.bool(true, "", inline = "NYLU", group = g_KZ)
+nylu_text           = input.string("London Close", "", inline = "NYLU", group = g_KZ)
+nylu                = input.session("1100-1200", "", inline = "NYLU", group = g_KZ)
+nl_color            = input.color(color.yellow, "", inline = "NYLU", group = g_KZ)
+
+use_nypm            = input.bool(true, "", inline = "NYPM", group = g_KZ)
+nypm_text           = input.string("NY PM", "", inline = "NYPM", group = g_KZ)
+nypm                = input.session("1330-1600", "", inline = "NYPM", group = g_KZ)
+np_color            = input.color(color.purple, "", inline = "NYPM", group = g_KZ)
+
+
+var g_LABELS        = "Killzone Pivots"
+show_pivots         = input.bool(true, "Show Pivots", inline = "PV", group = g_LABELS)
+show_labels         = input.bool(true, "Show Labels", inline = "PV", group = g_LABELS)
+
+ash_str             = input.string("AS.H", "Session 1 Labels", inline = "L_AS", group = g_LABELS)
+asl_str             = input.string("AS.L", "", inline = "L_AS", group = g_LABELS)
+as_alert            = input.bool(false, "Alerts", inline = "L_AS", group = g_LABELS)
+
+loh_str             = input.string("LO.H", "Session 2 Labels", inline = "L_LO", group = g_LABELS)
+lol_str             = input.string("LO.L", "", inline = "L_LO", group = g_LABELS)
+lo_alert            = input.bool(false, "Alerts", inline = "L_LO", group = g_LABELS)
+
+nah_str             = input.string("NYAM.H", "Session 3 Labels", inline = "L_NA", group = g_LABELS)
+nal_str             = input.string("NYAM.L", "", inline = "L_NA", group = g_LABELS)
+na_alert            = input.bool(false, "Alerts", inline = "L_NA", group = g_LABELS)
+
+nlh_str             = input.string("NYL.H", "Session 4 Labels", inline = "L_NL", group = g_LABELS)
+nll_str             = input.string("NYL.L", "", inline = "L_NL", group = g_LABELS)
+nl_alert            = input.bool(false, "Alerts", inline = "L_NL", group = g_LABELS)
+
+nph_str             = input.string("NYPM.H", "Session 5 Labels", inline = "L_NP", group = g_LABELS)
+npl_str             = input.string("NYPM.L", "", inline = "L_NP", group = g_LABELS)
+np_alert            = input.bool(false, "Alerts", inline = "L_NP", group = g_LABELS)
+
+s_style             = input.string(defval = 'Solid', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "L_0", group = g_LABELS)
+s_width             = input.int(1, "", inline = "L_0", group = g_LABELS)
+
+
+var g_DWM           = "DWM Open"
+dow_labels          = input.bool(true, "Day of Week Labels", inline = "DOW", group = g_DWM)
+dow_yloc            = input.string('Bottom', "", options = ['Top', 'Bottom'], inline = "DOW", group = g_DWM)
+dow_xloc            = input.string('Midnight', "", options = ['Midnight', 'Midday'], inline = "DOW", group = g_DWM)
+dow_color           = input.color(color.black, "", inline = "DOW", group = g_DWM)
+
+show_d_open         = input.bool(false, "", inline = "DO", group = g_DWM)
+d_open_str          = input.string("D.OPEN", "", inline = "DO", group = g_DWM)
+ds                  = input.bool(false, "Separators", inline = "DO", tooltip = "Mark where a new day begins. Unlimited will override the drawing limit", group = g_DWM)
+ds_unlimited        = input.bool(true, "Unlimited", inline = "DO", group = g_DWM)
+d_color             = input.color(color.blue, "", inline = "DO", group = g_DWM)
+
+show_w_open         = input.bool(false, "", inline = "WO", group = g_DWM)
+w_open_str          = input.string("W.OPEN", "", inline = "WO", group = g_DWM)
+ws                  = input.bool(false, "Separators", inline = "WO", tooltip = "Mark where a new week begins. Unlimited will override the drawing limit", group = g_DWM)
+ws_unlimited        = input.bool(true, "Unlimited", inline = "WO", group = g_DWM)
+w_color             = input.color(#089981, "", inline = "WO", group = g_DWM)
+
+show_m_open         = input.bool(false, "", inline = "MO", group = g_DWM)
+m_open_str          = input.string("M.OPEN", "", inline = "MO", group = g_DWM)
+ms                  = input.bool(false, "Separators", inline = "MO", tooltip = "Mark where a new month begins. Unlimited will override the drawing limit", group = g_DWM)
+ms_unlimited        = input.bool(true, "Unlimited", inline = "MO", group = g_DWM)
+m_color             = input.color(color.red, "", inline = "MO", group = g_DWM)
+
+dwm_style           = input.string(defval = 'Solid', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "D0", group = g_DWM)
+dwm_width           = input.int(1, "", inline = "D0", group = g_DWM)
+
+
+var g_OPEN          = "Opening Price"
+use_h1              = input.bool(true, "", inline = "H1", group = g_OPEN)
+h1_text             = input.string("True Day Open", "", inline = "H1", group = g_OPEN)
+h1                  = input.session("0000-0001", "", inline = "H1", group = g_OPEN)
+h1_color            = input.color(color.black, "", inline = "H1", group = g_OPEN)
+
+use_h2              = input.bool(false, "", inline = "H2", group = g_OPEN)
+h2_text             = input.string("06:00", "", inline = "H2", group = g_OPEN)
+h2                  = input.session("0600-0601", "", inline = "H2", group = g_OPEN)
+h2_color            = input.color(color.black, "", inline = "H2", group = g_OPEN)
+
+use_h3              = input.bool(false, "", inline = "H3", group = g_OPEN)
+h3_text             = input.string("10:00", "", inline = "H3", group = g_OPEN)
+h3                  = input.session("1000-1001", "", inline = "H3", group = g_OPEN)
+h3_color            = input.color(color.black, "", inline = "H3", group = g_OPEN)
+
+use_h4              = input.bool(false, "", inline = "H4", group = g_OPEN)
+h4_text             = input.string("14:00", "", inline = "H4", group = g_OPEN)
+h4                  = input.session("1400-1401", "", inline = "H4", group = g_OPEN)
+h4_color            = input.color(color.black, "", inline = "H4", group = g_OPEN)
+
+h_style             = input.string(defval = 'Dotted', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "H0", group = g_OPEN)
+h_width             = input.int(1, "", inline = "H0", group = g_OPEN)
+
+
+var g_VERTICAL      = "Timestamps"
+use_v1              = input.bool(false, "", inline = "V1", group = g_VERTICAL)
+v1                  = input.session("0000-0001", "", inline = "V1", group = g_VERTICAL)
+v1_color            = input.color(color.black, "", inline = "V1", group = g_VERTICAL)
+
+use_v2              = input.bool(false, "", inline = "V2", group = g_VERTICAL)
+v2                  = input.session("0800-0801", "", inline = "V2", group = g_VERTICAL)
+v2_color            = input.color(color.black, "", inline = "V2", group = g_VERTICAL)
+
+use_v3              = input.bool(false, "", inline = "V3", group = g_VERTICAL)
+v3                  = input.session("1000-1001", "", inline = "V3", group = g_VERTICAL)
+v3_color            = input.color(color.black, "", inline = "V3", group = g_VERTICAL)
+
+use_v4              = input.bool(true, "", inline = "V4", group = g_VERTICAL)
+v4                  = input.session("1200-1201", "", inline = "V4", group = g_VERTICAL)
+v4_color            = input.color(color.black, "", inline = "V4", group = g_VERTICAL)
+
+v_style             = input.string(defval = 'Dotted', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "V0", group = g_VERTICAL)
+v_width             = input.int(1, "", inline = "V0", group = g_VERTICAL)
+// ---------------------------------------- Inputs --------------------------------------------------
+
+
+// ---------------------------------------- Variables & Constants --------------------------------------------------
+t_as = not na(time("", asia, gmt_tz))
+t_lo = not na(time("", london, gmt_tz))
+t_na = not na(time("", nyam, gmt_tz))
+t_nl = not na(time("", nylu, gmt_tz))
+t_np = not na(time("", nypm, gmt_tz))
+t_co = not na(time("", cutoff, gmt_tz))
+
+t_h1 = not na(time("", h1, gmt_tz))
+t_h2 = not na(time("", h2, gmt_tz))
+t_h3 = not na(time("", h3, gmt_tz))
+t_h4 = not na(time("", h4, gmt_tz))
+
+t_v1 = not na(time("", v1, gmt_tz))
+t_v2 = not na(time("", v2, gmt_tz))
+t_v3 = not na(time("", v3, gmt_tz))
+t_v4 = not na(time("", v4, gmt_tz))
+
+var as_hi_line = array.new_line()
+var as_lo_line = array.new_line()
+var lo_hi_line = array.new_line()
+var lo_lo_line = array.new_line()
+var na_hi_line = array.new_line()
+var na_lo_line = array.new_line()
+var nl_hi_line = array.new_line()
+var nl_lo_line = array.new_line()
+var np_hi_line = array.new_line()
+var np_lo_line = array.new_line()
+
+var d_sep_line = array.new_line()
+var w_sep_line = array.new_line()
+var m_sep_line = array.new_line()
+
+var d_line = array.new_line()
+var w_line = array.new_line()
+var m_line = array.new_line()
+
+var h1_line = array.new_line()
+var h2_line = array.new_line()
+var h3_line = array.new_line()
+var h4_line = array.new_line()
+
+var v1_line = array.new_line()
+var v2_line = array.new_line()
+var v3_line = array.new_line()
+var v4_line = array.new_line()
+
+var d_label = array.new_label()
+var w_label = array.new_label()
+var m_label = array.new_label()
+
+var h1_label = array.new_label()
+var h2_label = array.new_label()
+var h3_label = array.new_label()
+var h4_label = array.new_label()
+
+var as_hi_label = array.new_label()
+var as_lo_label = array.new_label()
+var lo_hi_label = array.new_label()
+var lo_lo_label = array.new_label()
+var na_hi_label = array.new_label()
+var na_lo_label = array.new_label()
+var nl_hi_label = array.new_label()
+var nl_lo_label = array.new_label()
+var np_hi_label = array.new_label()
+var np_lo_label = array.new_label()
+
+var as_box = array.new_box()
+var lo_box = array.new_box()
+var na_box = array.new_box()
+var nl_box = array.new_box()
+var np_box = array.new_box()
+
+transparent = #ffffff00
+
+d_o = request.security(syminfo.tickerid, "D", open, barmerge.gaps_off, barmerge.lookahead_on)
+w_o = request.security(syminfo.tickerid, "W", open, barmerge.gaps_off, barmerge.lookahead_on)
+m_o = request.security(syminfo.tickerid, "M", open, barmerge.gaps_off, barmerge.lookahead_on)
+// ---------------------------------------- Variables & Constants --------------------------------------------------
+
+
+// ---------------------------------------- Functions --------------------------------------------------
+get_label_size(_size) =>
+    _size == 'Tiny' ? size.tiny : _size == 'Small' ? size.small : _size == 'Normal' ? size.normal : _size == 'Large' ? size.large : _size == 'Huge' ? size.huge : size.auto
+
+get_line_type(_style) =>
+    _style == 'Solid' ? line.style_solid : _style == 'Dotted' ? line.style_dotted : line.style_dashed
+
+get_box_color(_color, _transparency) =>
+    result = color.new(_color, _transparency)
+    
+adjust(_hline, _lline, _hlabel, _llabel, _ulabel, _box) =>
+    _hline.set_x2(bar_index)
+    _lline.set_x2(bar_index)
+    _box.set_right(bar_index)
+
+    _top = show_kz ? _box.get_top() : _hline.get_y1()
+    _bot = show_kz ? _box.get_bottom() : _lline.get_y1()
+
+    if high > _top
+        _hline.set_xy1(bar_index, high)
+        _hline.set_y2(high)
+        _box.set_top(high)
+
+        _hlabel.set_x(bar_index)
+        _hlabel.set_y(high)
+    if low < _bot
+        _lline.set_xy1(bar_index, low)
+        _lline.set_y2(low)
+        _box.set_bottom(low)
+
+        _llabel.set_x(bar_index)
+        _llabel.set_y(low)
+
+check_high(_line) =>
+    result = false
+    broke = false
+    _line.set_x2(bar_index)
+    if high > _line.get_y1()
+        result := true
+        broke := true
+    else if  (use_cutoff ? t_co : false)
+        result := true
+    [result, broke]
+    
+check_low(_line) =>
+    result = false
+    broke = false
+    _line.set_x2(bar_index)
+    if low < _line.get_y1()
+        result := true
+        broke := true
+    else if (use_cutoff ? t_co : false)
+        result := true
+    [result, broke]
+    
+check_open(_line, _label) =>
+    result = false
+    _line.set_x2(bar_index)
+    _label.set_x(bar_index)
+    if (use_cutoff ? t_co : false)
+        result := true
+    result
+
+check_array(_arr) =>
+    if _arr.size() > max_days
+        _arr.pop().delete()
+// ---------------------------------------- Functions --------------------------------------------------
+
+
+// ---------------------------------------- Core Logic --------------------------------------------------
+s_style := get_line_type(s_style)
+dwm_style := get_line_type(dwm_style)
+h_style := get_line_type(h_style)
+v_style := get_line_type(v_style)
+
+lb_size := get_label_size(lb_size)
+
+var color as_box_color = get_box_color(as_color, box_transparency)
+var color lo_box_color = get_box_color(lo_color, box_transparency)
+var color na_box_color = get_box_color(na_color, box_transparency)
+var color nl_box_color = get_box_color(nl_color, box_transparency)
+var color np_box_color = get_box_color(np_color, box_transparency)
+
+var color as_text_color = get_box_color(as_color, text_transparency)
+var color lo_text_color = get_box_color(lo_color, text_transparency)
+var color na_text_color = get_box_color(na_color, text_transparency)
+var color nl_text_color = get_box_color(nl_color, text_transparency)
+var color np_text_color = get_box_color(np_color, text_transparency)
+
+var h1_co = false
+var h2_co = false
+var h3_co = false
+var h4_co = false
+
+var as_stop_hi = false
+var as_stop_lo = false
+
+var lo_stop_hi = false
+var lo_stop_lo = false
+
+var na_stop_hi = false
+var na_stop_lo = false
+
+var nl_stop_hi = false
+var nl_stop_lo = false
+
+var np_stop_hi = false
+var np_stop_lo = false
+
+// day_str = switch dayofweek
+
+// if dayofweek != dayofweek[1]
+//     label.new(time, high, str.tostring(dayofweek))
+
+if timeframe.in_seconds("") <= timeframe.in_seconds(tf_limit)
+    // Asia
+    if use_asia
+        if t_as and not t_as[1]
+            as_stop_hi := false
+            as_stop_lo := false
+
+            if show_kz
+                as_box.unshift(box.new(bar_index, high, bar_index, low, border_color = as_box_color, bgcolor = as_box_color, text = show_kz_text ? asia_text : na, text_color = as_text_color))
+
+            if show_pivots
+                as_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = as_color, width = s_width))
+                as_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = as_color, width = s_width))
+
+            if show_labels
+                as_hi_label.unshift(label.new(bar_index, high, ash_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
+                as_lo_label.unshift(label.new(bar_index, low, asl_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
+        else if t_as
+            adjust(show_pivots ? as_hi_line.get(0) : na, show_pivots ? as_lo_line.get(0) : na, show_labels ? as_hi_label.get(0) : na, show_labels ? as_lo_label.get(0) : na, show_labels, show_kz ? as_box.get(0) : na)
+        else if not t_as and as_hi_line.size() > 0
+            if not as_stop_hi
+                [_r, _b] = check_high(as_hi_line.get(0))
+                as_stop_hi := _r
+                if _b and as_alert
+                    alert("Broke " + str.tostring(ash_str), alert.freq_once_per_bar)
+            if not as_stop_lo
+                [_r, _b] = check_low(as_lo_line.get(0))
+                as_stop_lo := _r
+                if _b and as_alert
+                    alert("Broke " + str.tostring(asl_str), alert.freq_once_per_bar)
+        
+    // London
+    if use_london
+        if t_lo and not t_lo[1]
+            lo_stop_hi := false
+            lo_stop_lo := false
+
+            if show_kz
+                lo_box.unshift(box.new(bar_index, high, bar_index, low, border_color = lo_box_color, bgcolor = lo_box_color, text = show_kz_text ? london_text : na, text_color = lo_text_color))
+
+            if show_pivots
+                lo_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = lo_color, width = s_width))
+                lo_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = lo_color, width = s_width))
+
+            if show_labels
+                lo_hi_label.unshift(label.new(bar_index, high, loh_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
+                lo_lo_label.unshift(label.new(bar_index, low, lol_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
+        else if t_lo
+            adjust(show_pivots ? lo_hi_line.get(0) : na, show_pivots ? lo_lo_line.get(0) : na, show_labels ? lo_hi_label.get(0) : na, show_labels ? lo_lo_label.get(0) : na, show_labels, show_kz ? lo_box.get(0) : na)
+        else if not t_lo and lo_hi_line.size() > 0
+            if not lo_stop_hi
+                [_r, _b] = check_high(lo_hi_line.get(0))
+                lo_stop_hi := _r
+                if _b and lo_alert
+                    alert("Broke " + str.tostring(loh_str), alert.freq_once_per_bar)
+            if not lo_stop_lo
+                [_r, _b] = check_low(lo_lo_line.get(0))
+                lo_stop_lo := _r
+                if _b and lo_alert
+                    alert("Broke " + str.tostring(lol_str), alert.freq_once_per_bar)
+                        
+    // NY AM
+    if use_nyam
+        if t_na and not t_na[1]
+            na_stop_hi := false
+            na_stop_lo := false
+
+            if show_kz
+                na_box.unshift(box.new(bar_index, high, bar_index, low, border_color = na_box_color, bgcolor = na_box_color, text = show_kz_text ? nyam_text : na, text_color = na_text_color))
+
+            if show_pivots
+                na_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = na_color, width = s_width))
+                na_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = na_color, width = s_width))
+
+            if show_labels
+                na_hi_label.unshift(label.new(bar_index, high, nah_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
+                na_lo_label.unshift(label.new(bar_index, low, nal_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
+        else if t_na
+            adjust(show_pivots ? na_hi_line.get(0) : na, show_pivots ? na_lo_line.get(0) : na, show_labels ? na_hi_label.get(0) : na, show_labels ? na_lo_label.get(0) : na, show_labels, show_kz ? na_box.get(0) : na)
+        else if not t_na and na_hi_line.size() > 0
+            if not na_stop_hi
+                [_r, _b] = check_high(na_hi_line.get(0))
+                na_stop_hi := _r
+                if _b and na_alert
+                    alert("Broke " + str.tostring(nah_str), alert.freq_once_per_bar)
+            if not na_stop_lo
+                [_r, _b] = check_low(na_lo_line.get(0))
+                na_stop_lo := _r
+                if _b and na_alert
+                    alert("Broke " + str.tostring(nal_str), alert.freq_once_per_bar)
+                        
+    // NY Lunch
+    if use_nylu
+        if t_nl and not t_nl[1]
+            nl_stop_hi := false
+            nl_stop_lo := false
+
+            if show_kz
+                nl_box.unshift(box.new(bar_index, high, bar_index, low, border_color = nl_box_color, bgcolor = nl_box_color, text = show_kz_text ? nylu_text : na, text_color = nl_text_color))
+
+            if show_pivots
+                nl_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = nl_color, width = s_width))
+                nl_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = nl_color, width = s_width))
+
+            if show_labels
+                nl_hi_label.unshift(label.new(bar_index, high, nlh_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
+                nl_lo_label.unshift(label.new(bar_index, low, nll_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
+        else if t_nl
+            adjust(show_pivots ? nl_hi_line.get(0) : na, show_pivots ? nl_lo_line.get(0) : na, show_labels ? nl_hi_label.get(0) : na, show_labels ? nl_lo_label.get(0) : na, show_labels, show_kz ? nl_box.get(0) : na)
+        else if not t_nl and nl_hi_line.size() > 0
+            if not nl_stop_hi
+                [_r, _b] = check_high(nl_hi_line.get(0))
+                nl_stop_hi := _r
+                if _b and nl_alert
+                    alert("Broke " + str.tostring(nlh_str), alert.freq_once_per_bar)
+            if not nl_stop_lo
+                [_r, _b] = check_low(nl_lo_line.get(0))
+                nl_stop_lo := _r
+                if _b and nl_alert
+                    alert("Broke " + str.tostring(nll_str), alert.freq_once_per_bar)
+                        
+    // NY PM
+    if use_nypm
+        if t_np and not t_np[1]
+            np_stop_hi := false
+            np_stop_lo := false
+
+            if show_kz
+                np_box.unshift(box.new(bar_index, high, bar_index, low, border_color = np_box_color, bgcolor = np_box_color, text = show_kz_text ? nypm_text : na, text_color = np_text_color))
+
+            if show_pivots
+                np_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = np_color, width = s_width))
+                np_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = np_color, width = s_width))
+
+            if show_labels
+                np_hi_label.unshift(label.new(bar_index, high, nph_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
+                np_lo_label.unshift(label.new(bar_index, low, npl_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
+        else if t_np
+            adjust(show_pivots ? np_hi_line.get(0) : na, show_pivots ? np_lo_line.get(0) : na, show_labels ? np_hi_label.get(0) : na, show_labels ? np_lo_label.get(0) : na, show_labels, show_kz ? np_box.get(0) : na) 
+        else if not t_np and np_hi_line.size() > 0
+            if not np_stop_hi
+                [_r, _b] = check_high(np_hi_line.get(0))
+                np_stop_hi := _r
+                if _b and np_alert
+                    alert("Broke " + str.tostring(nph_str), alert.freq_once_per_bar)
+            if not np_stop_lo
+                [_r, _b] = check_low(np_lo_line.get(0))
+                np_stop_lo := _r
+                if _b and np_alert
+                    alert("Broke " + str.tostring(npl_str), alert.freq_once_per_bar)
+                
+    // Vertical Lines
+    if use_v1 and t_v1 and not t_v1[1]
+        v1_line.unshift(line.new(bar_index, high, bar_index, low, style = v_style, width = v_width, extend = extend.both, color = v1_color))
+    if use_v2 and t_v2 and not t_v2[1]
+        v2_line.unshift(line.new(bar_index, high, bar_index, low, style = v_style, width = v_width, extend = extend.both, color = v2_color))
+    if use_v3 and t_v3 and not t_v3[1]
+        v3_line.unshift(line.new(bar_index, high, bar_index, low, style = v_style, width = v_width, extend = extend.both, color = v3_color))
+    if use_v4 and t_v4 and not t_v4[1]
+        v4_line.unshift(line.new(bar_index, high, bar_index, low, style = v_style, width = v_width, extend = extend.both, color = v4_color))
+
+    // Horizontal Lines
+    if use_h1
+        if t_h1 and not t_h1[1]
+            h1_co := false
+            
+            h1_line.unshift(line.new(bar_index, open, bar_index, open, style = h_style, width = h_width, color = h1_color))
+            h1_label.unshift(label.new(bar_index, open, h1_text, style = label.style_label_left, color = transparent, textcolor = lb_color, size = lb_size))
+        else if not t_h1 and h1_line.size() > 0 and not h1_co
+            h1_co := check_open(h1_line.get(0), h1_label.get(0))
+                
+    if use_h2
+        if t_h2 and not t_h2[1]
+            h2_co := false
+            
+            h2_line.unshift(line.new(bar_index, open, bar_index, open, style = h_style, width = h_width, color = h2_color))
+            h2_label.unshift(label.new(bar_index, open, h2_text, style = label.style_label_left, color = transparent, textcolor = lb_color, size = lb_size))
+        else if not t_h2 and h2_line.size() > 0
+            if not h2_co 
+                if not check_open(h2_line.get(0), h2_label.get(0))
+                    h2_label.get(0).set_x(bar_index)
+                else
+                    h2_co := true
+                
+    if use_h3
+        if t_h3 and not t_h3[1]
+            h3_co := false
+            
+            h3_line.unshift(line.new(bar_index, open, bar_index, open, style = h_style, width = h_width, color = h3_color))
+            h3_label.unshift(label.new(bar_index, open, h3_text, style = label.style_label_left, color = transparent, textcolor = lb_color, size = lb_size))
+        else if not t_h3 and h3_line.size() > 0 and not h3_co
+            h3_co := check_open(h3_line.get(0), h3_label.get(0))
+                
+    if use_h4
+        if t_h4 and not t_h4[1]
+            h4_co := false
+            
+            h4_line.unshift(line.new(bar_index, open, bar_index, open, style = h_style, width = h_width, color = h4_color))
+            h4_label.unshift(label.new(bar_index, open, h4_text, style = label.style_label_left, color = transparent, textcolor = lb_color, size = lb_size))
+        else if not t_h4 and h4_line.size() > 0 and not h4_co
+            h4_co := check_open(h4_line.get(0), h4_label.get(0))
+
+    // DWM - Separators
+    if ds
+        if d_o != d_o[1]
+            d_sep_line.unshift(line.new(bar_index, high, bar_index, low, style = dwm_style, width = dwm_width, extend = extend.both, color = d_color))
+    if ws
+        if w_o != w_o[1]
+            w_sep_line.unshift(line.new(bar_index, high, bar_index, low, style = dwm_style, width = dwm_width, extend = extend.both, color = w_color))
+    if ms
+        if m_o != m_o[1]
+            m_sep_line.unshift(line.new(bar_index, high, bar_index, low, style = dwm_style, width = dwm_width, extend = extend.both, color = m_color))
+
+    // DWM - Open Lines
+    if show_d_open
+        if d_o != d_o[1]
+            d_line.unshift(line.new(bar_index, d_o, bar_index, d_o, style = dwm_style, width = dwm_width, color = d_color))
+            d_label.unshift(label.new(bar_index, d_o, d_open_str, style = label.style_label_left, color = transparent, textcolor = lb_color, size = lb_size))
+        else if d_line.size() > 0
+            check_open(d_line.get(0), d_label.get(0))
+                
+    if show_w_open
+        if w_o != w_o[1]
+            w_line.unshift(line.new(bar_index, w_o, bar_index, w_o, style = dwm_style, width = dwm_width, color = w_color))
+            w_label.unshift(label.new(bar_index, w_o, w_open_str, style = label.style_label_left, color = transparent, textcolor = lb_color, size = lb_size))
+        else if w_line.size() > 0
+            check_open(w_line.get(0), w_label.get(0))
+                
+    if show_m_open
+        if m_o != m_o[1]
+            m_line.unshift(line.new(bar_index, m_o, bar_index, m_o, style = dwm_style, width = dwm_width, color = m_color))
+            m_label.unshift(label.new(bar_index, m_o, m_open_str, style = label.style_label_left, color = transparent, textcolor = lb_color, size = lb_size))
+        else if m_line.size() > 0
+            check_open(m_line.get(0), m_label.get(0))
+
+new_dow_time = dow_xloc == 'Midday' ? time - timeframe.in_seconds("D") / 2 * 1000 : time
+new_day = dayofweek(new_dow_time, gmt_tz) != dayofweek(new_dow_time, gmt_tz)[1]
+dow_top = dow_yloc == 'Top'
+
+monday = "MONDAY"
+tuesday = "TUESDAY"
+wednesday = "WEDNESDAY"
+thursday = "THURSDAY"
+friday = "FRIDAY"
+
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 2 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = dow_color, text = monday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 3 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = dow_color, text = tuesday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 4 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = dow_color, text = wednesday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 5 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = dow_color, text = thursday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 6 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = dow_color, text = friday)
+
+check_array(as_hi_line)
+check_array(as_lo_line)
+check_array(as_hi_label)
+check_array(as_lo_label)
+check_array(as_box)
+
+check_array(lo_hi_line)
+check_array(lo_lo_line)
+check_array(lo_hi_label)
+check_array(lo_lo_label)
+check_array(lo_box)
+
+check_array(na_hi_line)
+check_array(na_lo_line)
+check_array(na_hi_label)
+check_array(na_lo_label)
+check_array(na_box)
+
+check_array(nl_hi_line)
+check_array(nl_lo_line)
+check_array(nl_hi_label)
+check_array(nl_lo_label)
+check_array(nl_box)
+
+check_array(np_hi_line)
+check_array(np_lo_line)
+check_array(np_hi_label)
+check_array(np_lo_label)
+check_array(np_box)
+
+check_array(v1_line)
+check_array(v2_line)
+check_array(v3_line)
+check_array(v4_line)
+
+check_array(h1_line)
+check_array(h2_line)
+check_array(h3_line)
+check_array(h4_line)
+
+check_array(h1_label)
+check_array(h2_label)
+check_array(h3_label)
+check_array(h4_label)
+
+if not ds_unlimited
+    check_array(d_sep_line)
+    check_array(d_line)
+    check_array(d_label)
+if not ws_unlimited
+    check_array(w_sep_line)
+    check_array(w_line)
+    check_array(w_label)
+if not ms_unlimited
+    check_array(m_sep_line)
+    check_array(m_line)
+    check_array(m_label)
+// ---------------------------------------- Core Logic --------------------------------------------------
+
+//------------------------------------------macros start---------------------------------------------------
+//Input
+TimeZoneMode = input.string('UTC', 'Time Zone Mode', options = ['UTC', 'Session Local Time', 'Your Time Zone'],group = 'Basic Setting')
+YourTZ = input.string('UTC-4:00', 'Your Time Zone',group = 'Basic Setting')
+Show_Time = input.bool(false,  'Show Range Time')
+
+//London Macro 1
+show_London_Macro_1 = input(true, 'London Macro 1', inline = 'London Macro 1',group = 'London Macro 1')
+London_Macro_1_color = input.color(#8bbcfc, 'Color', inline = 'London Macro 1', group = 'London Macro 1')
+
+//London Macro 2
+show_London_Macro_2 = input(true, 'London Macro 2', inline = 'London Macro 2',group = 'London Macro 2') 
+London_Macro_2_color = input.color(#F0B884, 'Color', inline = 'London Macro 2', group = 'London Macro 2')
+
+//New York Macro AM 1
+show_New_York_AM_1 = input(true, 'New York Macro AM 1', inline = 'New York Macro AM 1',group = 'New York Macro AM 1') 
+New_York_AM_1_color = input.color(#0CC1C0, 'Color', inline = 'New York Macro AM 1', group = 'New York Macro AM 1')
+
+//New York Macro AM 2
+show_New_York_AM_2 = input(true, 'New York Macro AM 2', inline = 'New York Macro AM 2',group = 'New York Macro AM 2') 
+New_York_AM_2_color = input.color(#fc0000c7, 'Color', inline = 'New York Macro AM 2', group = 'New York Macro AM 2')
+
+//New York Macro AM 3
+show_New_York_AM_3 = input(true, 'New York Macro AM 3',  inline = 'New York Macro AM 3',group = 'New York Macro AM 3') 
+New_York_AM_3_color = input.color(#BBE8B5, 'Color', inline = 'New York Macro AM 3', group = 'New York Macro AM 3')
+
+//New York Macro Lunch
+show_New_York_Lunch = input(true, 'New York Macro Lunch',  inline = 'New York Macro Lunch',group = 'New York Macro Lunch') 
+New_York_Lunch_color = input.color(#ACBBE8, 'Color', inline = 'New York Macro Lunch', group = 'New York Macro Lunch')
+
+
+//New York Macro PM
+show_New_York_PM = input(true, 'New York Macro PM',  inline = 'New York Macro PM',group = 'New York Macro PM') 
+New_York_PM_color = input.color(#C5ACE8, 'Color', inline = 'New York Macro PM', group = 'New York Macro PM')
+
+// New York Macro Last Hour
+show_New_York_Last_Hour = input(true, 'New York Macro Last Hour', inline = 'New York Macro Last Hour',group = 'New York Macro Last Hour') 
+New_York_Last_Hour_color = input.color(#87c2d4, '', inline = 'New York Macro Last Hour', group = 'New York Macro Last Hour')
+
+
+
+//Daylight Saving Time
+DST_Detector(Start_Month, Start_Day, Start_CountDay, End_Month, End_Day, End_CountDay, TimeZone) =>
+    var int StartCountDay = 0
+    var int EndCountDay   = 0
+    var bool S_PermitCount = true
+    var bool E_PermitCount = true
+    var bool SS_PermitCount = true
+    var bool EE_PermitCount = true
+    var int S = Start_CountDay
+    var int E = End_CountDay   
+    Y = year
+    M = month
+    D = dayofweek
+    //dayofmonth counter
+    if M[1] != M
+        StartCountDay := 0
+        EndCountDay   := 0
+        SS_PermitCount := true
+        EE_PermitCount := true       
+    if D[1] != D
+        S_PermitCount := true
+        E_PermitCount := true
+
+    if D == Start_Day and S_PermitCount
+        StartCountDay  := StartCountDay + 1
+        S_PermitCount := false
+
+    if D == End_Day and E_PermitCount
+        EndCountDay    := EndCountDay + 1
+        E_PermitCount := false
+    if Start_CountDay < 4 and SS_PermitCount == true
+        S := Start_CountDay
+    else if Start_CountDay == 4 and SS_PermitCount == true
+        if StartCountDay < 4
+            S := 4
+        else if (StartCountDay[1] == 3 and StartCountDay == 4) and dayofmonth > 23
+            S := 4
+            SS_PermitCount := false
+        else 
+            S := 5
+    
+    if End_CountDay < 4 and EE_PermitCount == true
+        E := End_CountDay
+    else if End_CountDay == 4 and EE_PermitCount == true
+        if EndCountDay < 4
+            E := 4
+        else if (EndCountDay[1] == 3 and EndCountDay == 4) and dayofmonth > 23
+            E := 4
+            EE_PermitCount := false
+        else 
+            E := 5
+
+    if  M == Start_Month and StartCountDay >= S
+     or  (M > Start_Month and M < End_Month)
+     or M == End_Month and  EndCountDay < E 
+        TimeZone == "Australia/Sydney" ? 'Inactive' : 'Active'
+    else 
+        TimeZone == "Australia/Sydney" ? 'Active' : 'Inactive'
+    
+London_DST  = DST_Detector(3 , dayofweek.sunday, 4, 10 , dayofweek.sunday, 4,    "Europe/London")
+NewYork_DST = DST_Detector(3 , dayofweek.sunday, 2, 11 , dayofweek.sunday, 1, "America/New_York")
+
+//Session Timing
+Market_TimeZone_Calculator(TimeZoneMode) =>
+    var string London_Macro_1     = na
+    var string London_Macro_2     = na
+    var string New_York_AM_1      = na
+    var string New_York_AM_2      = na
+    var string New_York_AM_3      = na
+    var string New_York_Lunch     = na
+    var string New_York_PM        = na
+    var string New_York_Last_Hour = na
+    
+    if TimeZoneMode == 'UTC'
+
+        if London_DST == 'Inactive'
+            London_Macro_1   := '0733-0800'
+            London_Macro_2   := '0903-0930'
+
+        else if London_DST == 'Active'
+            London_Macro_1   := '0633-0700'
+            London_Macro_2   := '0803-0830'
+
+
+        if NewYork_DST == 'Inactive'
+            New_York_AM_1      := '1350-1410'
+            New_York_AM_2      := '1450-1510'
+            New_York_AM_3      := '1550-1610'
+            New_York_Lunch     := '1650-1710'
+            New_York_PM        := '1810-1840'
+            New_York_Last_Hour := '2015-2045'
+        else if NewYork_DST == 'Active'
+            New_York_AM_1      := '1250-1310'
+            New_York_AM_2      := '1350-1410'
+            New_York_AM_3      := '1450-1510'
+            New_York_Lunch     := '1550-1610'
+            New_York_PM        := '1710-1740'
+            New_York_Last_Hour := '1950-2000'
+
+
+    else if TimeZoneMode == 'Session Local Time'  or TimeZoneMode == 'Your Time Zone'
+
+        if London_DST == 'Inactive'
+            London_Macro_1   := '0333-0400'
+            London_Macro_2   := '0503-0530'
+
+        else if London_DST == 'Active'
+            London_Macro_1   := '0233-0300'
+            London_Macro_2   := '0403-0430'
+
+
+        if NewYork_DST == 'Inactive'
+            New_York_AM_1      := '0850-0910'
+            New_York_AM_2      := '0950-1010'
+            New_York_AM_3      := '1050-1110'
+            New_York_Lunch     := '1150-1210'
+            New_York_PM        := '1310-1340'
+            New_York_Last_Hour := '1515-1545'
+        else if NewYork_DST == 'Active'
+            New_York_AM_1      := '0850-0910'
+            New_York_AM_2      := '0950-1010'
+            New_York_AM_3      := '1050-1110'
+            New_York_Lunch     := '1150-1210'
+            New_York_PM        := '1310-1340'
+            New_York_Last_Hour := '1550-1600'
+
+    [London_Macro_1, London_Macro_2, New_York_AM_1, New_York_AM_2, New_York_AM_3, New_York_Lunch, New_York_PM, New_York_Last_Hour]
+
+//zones
+
+[London_Macro_1, London_Macro_2, New_York_AM_1, New_York_AM_2, New_York_AM_3, New_York_Lunch, New_York_PM, New_York_Last_Hour] = Market_TimeZone_Calculator(TimeZoneMode)
+
+
+London_Macro_1_TZ     = TimeZoneMode == 'Session Local Time' or TimeZoneMode == 'Your Time Zone'?  "America/New_York" : TimeZoneMode == 'UTC' ? 'UTC+0' :  na
+London_Macro_2_TZ     = TimeZoneMode == 'Session Local Time' or TimeZoneMode == 'Your Time Zone'?  "America/New_York" : TimeZoneMode == 'UTC' ? 'UTC+0' :  na
+New_York_AM_1_TZ      = TimeZoneMode == 'Session Local Time' or TimeZoneMode == 'Your Time Zone'?  "America/New_York" : TimeZoneMode == 'UTC' ? 'UTC+0' :  na
+New_York_AM_2_TZ      = TimeZoneMode == 'Session Local Time' or TimeZoneMode == 'Your Time Zone'?  "America/New_York" : TimeZoneMode == 'UTC' ? 'UTC+0' :  na
+New_York_AM_3_TZ      = TimeZoneMode == 'Session Local Time' or TimeZoneMode == 'Your Time Zone'?  "America/New_York" : TimeZoneMode == 'UTC' ? 'UTC+0' :  na
+New_York_Lunch_TZ     = TimeZoneMode == 'Session Local Time' or TimeZoneMode == 'Your Time Zone'?  "America/New_York" : TimeZoneMode == 'UTC' ? 'UTC+0' :  na
+New_York_PM_TZ        = TimeZoneMode == 'Session Local Time' or TimeZoneMode == 'Your Time Zone'?  "America/New_York" : TimeZoneMode == 'UTC' ? 'UTC+0' :  na
+New_York_Last_Hour_TZ = TimeZoneMode == 'Session Local Time' or TimeZoneMode == 'Your Time Zone'?  "America/New_York" : TimeZoneMode == 'UTC' ? 'UTC+0' :  na
+
+
+On_London_Macro_1     = math.sign(nz(time(timeframe.period, London_Macro_1, London_Macro_1_TZ)))
+On_London_Macro_2     = math.sign(nz(time(timeframe.period, London_Macro_2, London_Macro_2_TZ)))
+On_New_York_AM_1      = math.sign(nz(time(timeframe.period, New_York_AM_1, New_York_AM_1_TZ)))
+On_New_York_AM_2      = math.sign(nz(time(timeframe.period, New_York_AM_2, New_York_AM_2_TZ)))
+On_New_York_AM_3      = math.sign(nz(time(timeframe.period, New_York_AM_3, New_York_AM_3_TZ)))
+On_New_York_Lunch     = math.sign(nz(time(timeframe.period, New_York_Lunch, New_York_Lunch_TZ)))
+On_New_York_PM        = math.sign(nz(time(timeframe.period, New_York_PM, New_York_PM_TZ)))
+On_New_York_Last_Hour = math.sign(nz(time(timeframe.period, New_York_Last_Hour, New_York_Last_Hour_TZ)))
+
+//High & Low Session Detector 
+
+LowHighSessionDetector(On, Front_On ,Color, Text) =>
+    var int Bar = 0
+    var float High = 0.0 
+    var float Low = 0.0
+    var box BoX = na
+    var line H_Line = na
+    var line L_Line = na
+    var label LabeL = na 
+    var bool Permit = false
+    if  (On[1] == 0 and On == 1)
+        Bar := bar_index
+        High := high
+        Low := low
+        
+    else 
+        if On[1] == 1 or On == 1
+            High := math.max(high , High) 
+            Low :=   math.min(low , Low)
+
+    if On > On[1] and str.tonumber(timeframe.period) <= 16
+        BoX := box.new(bar_index,High, bar_index , Low, bgcolor = color.new(Color, 85),
+         border_color = color.rgb(34, 101, 155),
+         border_style = line.style_dotted)
+        
+        LabeL := label.new(int(math.avg(Bar,bar_index)), High , text = Text ,xloc = xloc.bar_index, yloc = yloc.price, size = size.normal ,
+         style =  label.style_label_down  , textcolor = color.rgb(34, 101, 155), color = color.rgb(255, 255, 255, 100))
+    if On[1] == 1 or On == 1
+        box.set_top(BoX, High)
+        box.set_bottom(BoX, Low)
+        box.set_right(BoX, bar_index)
+        label.set_x(LabeL,math.round(math.avg(Bar,bar_index)))
+        label.set_y(LabeL, High)
+    
+    if On < On[1]
+        H_Line := line.new(bar_index, High, bar_index + 1, High, color = Color , style = line.style_dashed)
+        L_Line := line.new(bar_index, Low , bar_index + 1, Low , color = Color , style = line.style_dashed)
+        Permit := true
+    if not (Front_On[1] < Front_On) and Permit
+        H_Line.set_x2(bar_index)
+        L_Line.set_x2(bar_index)
+    if Front_On == 1
+        Permit := false 
+    [High , Low ]
+  
+
+// Start and Enf Time
+SplitFunction(x, TZ ,YourTZ) =>
+    Text  = str.split(x, '-')
+    STime = Text.size() > 0 ? (Text.get(0)) : '0000'
+    ETime = Text.size() > 0 ? (Text.get(1)) : '0000'
+    SHour = str.substring(STime ,0,2)
+    SMin  = str.substring(STime ,2,4)
+    EHour = str.substring(ETime ,0,2)
+    EMin  = str.substring(ETime ,2,4)
+    SUTCTimestamp = timestamp(TZ, year, month, dayofmonth, int(str.tonumber(SHour)), int(str.tonumber(SMin)), 0)
+    EUTCTimestamp = timestamp(TZ, year, month, dayofmonth, int(str.tonumber(EHour)), int(str.tonumber(EMin)), 0)
+    SconvertedHour = hour(SUTCTimestamp, YourTZ)
+    SconvertedMinute = minute(SUTCTimestamp, YourTZ)
+    EconvertedHour = hour(EUTCTimestamp, YourTZ)
+    EconvertedMinute = minute(EUTCTimestamp, YourTZ)
+    YourStart = str.tostring(SconvertedHour) + ':' + str.tostring(SconvertedMinute < 10 ? '0' + 
+     str.tostring(SconvertedMinute) : str.tostring(SconvertedMinute))
+    YourEnd = str.tostring(EconvertedHour) + ':' + str.tostring(EconvertedMinute < 10 ? '0' + 
+     str.tostring(EconvertedMinute) : str.tostring(EconvertedMinute))
+
+    Start = TimeZoneMode == 'Your Time Zone'  ? YourStart  : (SHour + ':' + SMin)
+    End   = TimeZoneMode == 'Your Time Zone'  ? YourEnd : (EHour + ':' + EMin)
+    [Start, End]
+
+[London_Macro_1_Start, London_Macro_1_End]         = SplitFunction(London_Macro_1, London_Macro_1_TZ, YourTZ)
+[London_Macro_2_Start, London_Macro_2_End]         = SplitFunction(London_Macro_2, London_Macro_2_TZ, YourTZ)
+[New_York_AM_1_Start, New_York_AM_1_End]           = SplitFunction(New_York_AM_1, New_York_AM_1_TZ, YourTZ)
+[New_York_AM_2_Start, New_York_AM_2_End]           = SplitFunction(New_York_AM_2, New_York_AM_2_TZ, YourTZ)
+[New_York_AM_3_Start, New_York_AM_3_End]           = SplitFunction(New_York_AM_3, New_York_AM_3_TZ, YourTZ)
+[New_York_Lunch_Start, New_York_Lunch_End]         = SplitFunction(New_York_Lunch, New_York_Lunch_TZ, YourTZ)
+[New_York_PM_Start, New_York_PM_End]               = SplitFunction(New_York_PM, New_York_PM_TZ, YourTZ)
+[New_York_Last_Hour_Start, New_York_Last_Hour_End] = SplitFunction(New_York_Last_Hour, New_York_Last_Hour_TZ, YourTZ)
+
+//Text 
+TZ = TimeZoneMode == 'Session Local Time' ? 'New York' : TimeZoneMode == 'Your Time Zone' ? YourTZ : 'UTC'
+London_Macro_1_text     = 'LDN 1'           + (Show_Time ? ('\n' + London_Macro_1_Start     + ' ' + 'to' + ' ' + London_Macro_1_End     + ' ' + '(' + TZ + ')') : '')
+London_Macro_2_text     = 'LDN 2'           + (Show_Time ? ('\n' + London_Macro_2_Start     + ' ' + 'to' + ' ' + London_Macro_2_End     + ' ' + '(' + TZ + ')') : '')
+New_York_AM_1_text      = 'NY AM 1'         + (Show_Time ? ('\n' + New_York_AM_1_Start      + ' ' + 'to' + ' ' + New_York_AM_1_End      + ' ' + '(' + TZ + ')') : '')
+New_York_AM_2_text      = 'NY AM 2'         + (Show_Time ? ('\n' + New_York_AM_2_Start      + ' ' + 'to' + ' ' + New_York_AM_2_End      + ' ' + '(' + TZ + ')') : '')
+New_York_AM_3_text      = 'NY AM 3'         + (Show_Time ? ('\n' + New_York_AM_3_Start      + ' ' + 'to' + ' ' + New_York_AM_3_End      + ' ' + '(' + TZ + ')') : '')
+New_York_Lunch_text     = 'NY Lunch'        + (Show_Time ? ('\n' + New_York_Lunch_Start     + ' ' + 'to' + ' ' + New_York_Lunch_End     + ' ' + '(' + TZ + ')') : '')
+New_York_PM_text        = 'NY PM'           + (Show_Time ? ('\n' + New_York_PM_Start        + ' ' + 'to' + ' ' + New_York_PM_End        + ' ' + '(' + TZ + ')') : '')
+New_York_Last_Hour_text = 'NY Last Hour'    + (Show_Time ? ('\n' + New_York_Last_Hour_Start + ' ' + 'to' + ' ' + New_York_Last_Hour_End + ' ' + '(' + TZ + ')') : '')
+
+
+if show_London_Macro_1
+    LowHighSessionDetector(On_London_Macro_1,On_London_Macro_2 ,London_Macro_1_color,London_Macro_1_text)
+
+if show_London_Macro_2 
+    LowHighSessionDetector(On_London_Macro_2,On_New_York_AM_1,London_Macro_2_color,London_Macro_2_text)
+
+if show_New_York_AM_1 
+    LowHighSessionDetector(On_New_York_AM_1,On_New_York_AM_2,New_York_AM_1_color,New_York_AM_1_text)
+
+if show_New_York_AM_2
+    LowHighSessionDetector(On_New_York_AM_2,On_New_York_AM_3 ,New_York_AM_2_color,New_York_AM_2_text)
+
+if show_New_York_AM_3 
+    LowHighSessionDetector(On_New_York_AM_3,On_New_York_Lunch ,New_York_AM_3_color,New_York_AM_3_text)
+
+if show_New_York_Lunch
+    LowHighSessionDetector(On_New_York_Lunch,On_New_York_PM ,New_York_Lunch_color,New_York_Lunch_text)
+
+if show_New_York_PM 
+    LowHighSessionDetector(On_New_York_PM,On_New_York_Last_Hour ,New_York_PM_color,New_York_PM_text)
+
+if show_New_York_Last_Hour 
+    LowHighSessionDetector(On_New_York_Last_Hour,On_London_Macro_1 ,New_York_Last_Hour_color,New_York_Last_Hour_text)
+
+//------------------------------------------macros end---------------------------------------------------
+
+
+// Water mark -----------------
+
+//text inputs
+title = input.string('TRADER PK', 'Tittle', group='text')
+subtitle = input.string('HTF Bias| TIME  |  LQ  |  BB  |  FVG  | EXECUTION', 'Subtitle', group='text')
+//symbol info
+symInfoCheck = input.bool(title='Show Symbol Info', defval=true, group='watermark position')
+symInfo = syminfo.ticker + ' | ' + timeframe.period + (timeframe.isminutes ? 'M' : na)
+date = str.tostring(dayofmonth(time_close)) + '/' + str.tostring(month(time_close)) + '/' + str.tostring(year(time_close))
+//text positioning
+textVPosition = input.string('top', 'Vertical Position', options=['top', 'middle', 'bottom'], group='watermark position')
+textHPosition = input.string('center', 'Horizontal Position', options=['left', 'center', 'right'], group='watermark position')
+//symbol info positioning
+symVPosition = input.string('bottom', 'Vertical Position', options=['top', 'middle', 'bottom'], group='symbol position')
+symHPosition = input.string('center', 'Horizontal Position', options=['left', 'center', 'right'], group='symbol position')
+//cell size
+width = input.int(0, 'Width', minval=0, maxval=100, tooltip='The width of the cell as a % of the indicator\'s visual space. Optional. By default, auto-adjusts the width based on the text inside the cell. Value 0 has the same effect.', group='cell size')
+height = input.int(0, 'Height', minval=0, maxval=100, tooltip='The height of the cell as a % of the indicator\'s visual space. Optional. By default, auto-adjusts the height based on the text inside of the cell. Value 0 has the same effect.', group='cell size')
+//title settings
+c_title = input.color(color.new(#b2b5be, 0), 'Title Color', group='title settings')
+s_title = input.string('large', 'Title Size', options=['tiny', 'small', 'normal', 'large', 'huge', 'auto'], group='title settings')
+a_title = input.string('center', 'Title Alignment', options=['center', 'left', 'right'], group='title settings')
+//subtitle settings
+c_subtitle = input.color(color.new(#b2b5be, 30), 'Subitle Color', group='subtitle settings')
+s_subtitle = input.string('normal', 'Subtitle Size', options=['tiny', 'small', 'normal', 'large', 'huge', 'auto'], group='subtitle settings')
+a_subtitle = input.string('center', 'Subtitle Alignment', options=['center', 'left', 'right'], group='subtitle settings')
+
+//symbol settings
+c_symInfo = input.color(color.new(#b2b5be, 30), 'Subitle Color', group='symbol settings')
+s_symInfo = input.string('normal', 'Subtitle Size', options=['tiny', 'small', 'normal', 'large', 'huge', 'auto'], group='symbol settings')
+a_symInfo = input.string('center', 'Subtitle Alignment', options=['center', 'left', 'right'], group='symbol settings')
+c_bg = input.color(color.new(#b2b5be, 100), 'Background', group='background')
+
+
+//text watermark creation
+textWatermark = table.new(textVPosition + '_' + textHPosition, 1, 3)
+table.cell(textWatermark, 0, 0, title, width, height, c_title, a_title, text_size=s_title, bgcolor=c_bg)
+table.cell(textWatermark, 0, 1, subtitle, width, height, c_subtitle, a_subtitle, text_size=s_subtitle, bgcolor=c_bg)
+//symbol info watermark creation
+symWatermark = table.new(symVPosition + '_' + symHPosition, 5, 5)
+if symInfoCheck == true
+    table.cell(symWatermark, 0, 1, symInfo, width, height, c_symInfo, a_symInfo, text_size=s_symInfo, bgcolor=c_bg)
+    table.cell(symWatermark, 0, 0, date, width, height, c_symInfo, a_symInfo, text_size=s_symInfo, bgcolor=c_bg)
+//text watermark End -------------------------------------------------------------------------------
+
+
+
+//multi time frame FVG ---------------------------------------------------------------------------
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- Types                                                                                                ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+type Settings 
+    bool    CE_show
+    string  CE_style
+    color   CE_color
+    bool    Border_show
+    bool    mitigated_show
+    string  mitigated_type
+    color   mitigated_color_bull
+    color   mitigated_color_bear
+    bool    ltf_hide
+    bool    label_show
+    color   label_color
+    color   label_bgcolor
+    string  label_size
+    int     padding
+    int     buffer
+
+type Imbalance_Settings
+    bool    show
+    string  htf
+    color   color_bull
+    color   color_bear
+    int     max_count
+
+type Imbalance
+    int     open_time
+    int     close_time
+    float   open
+    float   middle
+    float   close
+    bool    mitigated
+    int     mitigated_time
+    line    line_middle
+    label   lbl
+    box     box
+
+type ImbalanceStructure
+    Imbalance[]         imbalance
+    Imbalance_Settings  settings
+
+type Helper
+    string name         = "Helper"
+
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- Settings                                                                                             ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+Settings_Group                      = "Global Settings"
+
+Settings settings                   = Settings.new()
+Imbalance_Settings HTF_1_Settings   = Imbalance_Settings.new()
+Imbalance_Settings HTF_2_Settings   = Imbalance_Settings.new()
+Imbalance_Settings HTF_3_Settings   = Imbalance_Settings.new()
+Imbalance_Settings HTF_4_Settings   = Imbalance_Settings.new()
+Imbalance_Settings HTF_5_Settings   = Imbalance_Settings.new()
+Imbalance_Settings HTF_6_Settings   = Imbalance_Settings.new()
+
+string tooltip1 = "HTF FVG Settings:\n\tShow/Hide timeframe\n\tTimeframe to display\n\tBullish FVG Color\n\tBearish FVG Color\n\tMaximum number of FVGs to display"
+string tooltip2 = "Mitigated FVG Settings:\n\tShow/Hide mitigated (Applies to all).\n\tBullish FVG Color\n\tBearish FVG Color\n\tWhen to mark it as mitigated (Based on HTF timeframe, not current timeframe)"
+
+HTF_1_Settings.show         := input.bool(false, "", inline="htf1")
+htf_1                        = input.timeframe("5", "", inline="htf1")
+HTF_1_Settings.htf          := htf_1
+HTF_1_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf1")
+HTF_1_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf1")
+HTF_1_Settings.max_count    := input.int(20, "", inline="htf1", tooltip = tooltip1)
+
+HTF_2_Settings.show         := input.bool(false, "", inline="htf2")
+htf_2                        = input.timeframe("15", "", inline="htf2")
+HTF_2_Settings.htf          := htf_2
+HTF_2_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf2")
+HTF_2_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf2")
+HTF_2_Settings.max_count    := input.int(20, "", inline="htf2", tooltip = tooltip1)
+
+HTF_3_Settings.show         := input.bool(true, "", inline="htf3")
+htf_3                        = input.timeframe("60", "", inline="htf3")
+HTF_3_Settings.htf          := htf_3
+HTF_3_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf3")
+HTF_3_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf3")
+HTF_3_Settings.max_count    := input.int(20, "", inline="htf3", tooltip = tooltip1)
+
+HTF_4_Settings.show         := input.bool(true, "", inline="htf4")
+htf_4                        = input.timeframe("240", "", inline="htf4")
+HTF_4_Settings.htf          := htf_4
+HTF_4_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf4")
+HTF_4_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf4")
+HTF_4_Settings.max_count    := input.int(10, "", inline="htf4", tooltip = tooltip1)
+
+HTF_5_Settings.show         := input.bool(true, "", inline="htf5")
+htf_5                        = input.timeframe("1D", "", inline="htf5")
+HTF_5_Settings.htf          := htf_5
+HTF_5_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf5")
+HTF_5_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf5")
+HTF_5_Settings.max_count    := input.int(10, "", inline="htf5", tooltip = tooltip1)
+
+HTF_6_Settings.show         := input.bool(true, "", inline="htf6")
+htf_6                        = input.timeframe("1W", "", inline="htf6")
+HTF_6_Settings.htf          := htf_6
+HTF_6_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf6")
+HTF_6_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf6")
+HTF_6_Settings.max_count    := input.int(2, "", inline="htf6", tooltip = tooltip1)
+
+settings.ltf_hide               := input.bool(true, "Hide Lower Timeframes")
+settings.Border_show            := input.bool(true, "Show Border", group=Settings_Group, inline="4")
+settings.mitigated_show         := input.bool(false, "Show Mitigated", group=Settings_Group, inline="2")
+settings.mitigated_color_bull   := input.color(color.new(color.gray,95), "", group=Settings_Group, inline="2")
+settings.mitigated_color_bear   := input.color(color.new(color.gray,95), "", group=Settings_Group, inline="2")
+settings.mitigated_type         := input.string('Wick filled', 'when', options = ['None', 'Wick filled', 'Body filled', 'Wick filled half', 'Body filled half'], group=Settings_Group, inline="2", tooltip=tooltip2)
+settings.CE_show                := input.bool(true, "Show C.E.     ", group=Settings_Group, inline="3")
+settings.CE_color               := input.color(color.new(color.black,60), "", group=Settings_Group, inline="3")
+settings.CE_style               := input.string('····', '     ', options = ['⎯⎯⎯', '----', '····'], group=Settings_Group, inline="3")
+settings.label_show             := input.bool(true, "Show Label   ", inline="label")
+settings.label_color            := input.color(color.new(color.black, 10), "", inline='label')
+settings.label_bgcolor          := input.color(color.new(color.white, 100), "", inline='label')
+settings.label_size             := input.string(size.small, "", [size.tiny, size.small, size.normal, size.large, size.huge], inline="label")
+settings.padding                := input.int(4, "Distance from current candle", minval=0)
+settings.buffer                 := input.int(6, "Spacing between timeframes", minval=0)
+
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- Variables                                                                                            ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+color color_transparent             = #ffffff00
+
+Helper helper                       = Helper.new()
+
+var ImbalanceStructure FVG_1        = ImbalanceStructure.new()
+var ImbalanceStructure FVG_2        = ImbalanceStructure.new()
+var ImbalanceStructure FVG_3        = ImbalanceStructure.new()
+var ImbalanceStructure FVG_4        = ImbalanceStructure.new()
+var ImbalanceStructure FVG_5        = ImbalanceStructure.new()
+var ImbalanceStructure FVG_6        = ImbalanceStructure.new()
+
+var Imbalance[] FVGs_1              = array.new<Imbalance>()
+var Imbalance[] FVGs_2              = array.new<Imbalance>()
+var Imbalance[] FVGs_3              = array.new<Imbalance>()
+var Imbalance[] FVGs_4              = array.new<Imbalance>()
+var Imbalance[] FVGs_5              = array.new<Imbalance>()
+var Imbalance[] FVGs_6              = array.new<Imbalance>()
+
+FVG_1.imbalance                     := FVGs_1
+FVG_1.settings                      := HTF_1_Settings
+FVG_2.imbalance                     := FVGs_2
+FVG_2.settings                      := HTF_2_Settings
+FVG_3.imbalance                     := FVGs_3
+FVG_3.settings                      := HTF_3_Settings
+FVG_4.imbalance                     := FVGs_4
+FVG_4.settings                      := HTF_4_Settings
+FVG_5.imbalance                     := FVGs_5
+FVG_5.settings                      := HTF_5_Settings
+FVG_6.imbalance                     := FVGs_6
+FVG_6.settings                      := HTF_6_Settings
+
+//Used internally for padding
+var int TF_1        = 0
+var int TF_2        = 0
+var int TF_3        = 0
+var int TF_4        = 0
+var int TF_5        = 0
+var int TF_6        = 0
+
+var float daily     = 0
+var float monthly   = 0
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- Methods                                                                                              ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+method LineStyle(Helper helper, string style) =>
+    helper.name := style
+
+    out = style == '----' ? line.style_dashed : style == '····' ? line.style_dotted : line.style_solid
+    out
+
+method Gethtftext(Helper helper, string htf) =>
+    helper.name := htf
+
+    formatted = htf
+    seconds = timeframe.in_seconds(htf)
+
+    if seconds < 60
+        formatted := str.tostring(seconds) + "s"
+    else if (seconds / 60) < 60
+        formatted := str.tostring((seconds/60)) + "m"
+    else if (seconds/60/60) < 24
+        formatted := str.tostring((seconds/60/60)) + "H"
+    
+    formatted
+
+method Validtimeframe(Helper helper, tf) =>
+    helper.name := tf
+    n1 = timeframe.in_seconds()
+    n2 = timeframe.in_seconds(tf)
+
+    n1 < n2
+
+method ProximityRange(Helper helper, tf) =>
+    helper.name := tf
+    float range_high    = 0
+    float range_low   = 0
+    if timeframe.isseconds or timeframe.isminutes
+        range_high := close + daily
+        range_low  := close - daily
+    if timeframe.isdaily
+        range_high := close + monthly*3
+        range_low  := close - monthly*3
+    if timeframe.isweekly
+        range_high := close + monthly*12
+        range_low  := close - monthly*12
+
+    [range_low, range_high]
+
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- Imbalances Methods                                                                                   ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+// AddZone is used to display and manage imbalance related boxes
+method AddZone(ImbalanceStructure IS, Imbalance imb, int step) =>
+    bool visible = true
+    if IS.settings.show
+        int buffer = time+((time-time[1])*(settings.padding+1+(settings.buffer*(step-1))))
+
+        if na(imb.box)
+            imb.box := box.new(imb.open_time, imb.open, buffer, imb.close, settings.Border_show ? imb.open < imb.close ? color.new(IS.settings.color_bull, color.t(IS.settings.color_bull)/ 3) : color.new(IS.settings.color_bear, color.t(IS.settings.color_bear)/ 3) : color_transparent, settings.Border_show ? 1 : 0, bgcolor = imb.open < imb.close ? IS.settings.color_bull : IS.settings.color_bear, xloc=xloc.bar_time)
+            if settings.label_show
+                imb.lbl := label.new(buffer, imb.middle, text=helper.Gethtftext(IS.settings.htf), xloc=xloc.bar_time, textcolor=settings.label_color, style=label.style_label_left, color=settings.label_bgcolor, size = settings.label_size)
+            if settings.CE_show
+                imb.line_middle := line.new(imb.open_time, imb.middle, buffer, imb.middle, xloc=xloc.bar_time, style=helper.LineStyle(settings.CE_style), color=settings.CE_color)
+        else
+            box.set_right(imb.box, imb.mitigated ? imb.mitigated_time : buffer)
+            box.set_bgcolor(imb.box, imb.open < imb.close ? imb.mitigated ? settings.mitigated_color_bull : IS.settings.color_bull : imb.mitigated ? settings.mitigated_color_bear : IS.settings.color_bear)
+            box.set_border_color(imb.box, settings.Border_show ? imb.open < imb.close ? color.new(settings.mitigated_color_bull, color.t(settings.mitigated_color_bull)/ 3) : color.new(settings.mitigated_color_bear, color.t(settings.mitigated_color_bear)/ 3) : color_transparent)
+            label.set_x(imb.lbl, imb.mitigated ? imb.mitigated_time : buffer)
+            //label.delete(imb.lbl)
+            if settings.CE_show
+                line.set_x2(imb.line_middle, imb.mitigated ? imb.mitigated_time : buffer)
+        if imb.mitigated and not settings.mitigated_show
+            if not na(imb.box)
+                box.delete(imb.box)
+                line.delete(imb.line_middle)
+                label.delete(imb.lbl)
+                visible := false
+    visible
+
+// AddImbalance adds a newly discovered imbalance. this applies for both FVG and Volume Imbalance
+method AddImbalance(ImbalanceStructure IS, float o, float c, int o_time) =>
+    Imbalance imb = Imbalance.new()
+    imb.open_time           := o_time
+    imb.open                := o
+    imb.middle              := (o+c)/2
+    imb.close               := c
+
+    IS.imbalance.unshift(imb)
+    //IS.AddZone(imb)
+
+    if IS.imbalance.size() > 100 //IS.settings.max_count
+        temp = IS.imbalance.pop()
+        if not na(temp.box)
+            box.delete(temp.box)
+            line.delete(temp.line_middle)
+            label.delete(temp.lbl)
+    IS
+
+// CheckMitigated checks if the imbalance has been mitigated based on the settings
+method CheckMitigated(ImbalanceStructure IS, o, h, l, c) =>
+    if IS.imbalance.size() > 0
+        for i = IS.imbalance.size() - 1 to 0
+            imb = IS.imbalance.get(i)
+
+            if not imb.mitigated
+                switch settings.mitigated_type
+                    "None" =>
+                        imb.mitigated       := false
+                    'Wick filled' =>
+                        imb.mitigated       := imb.open <= imb.close ? low <= imb.open : high >= imb.open
+                    'Body filled' =>
+                        imb.mitigated       := imb.open < imb.close ? math.min(o, c) <= imb.open : math.max(o, c) >= imb.open
+                    'Wick filled half' =>
+                        imb.mitigated       := imb.open <= imb.close ? low <= imb.middle : high >= imb.middle
+                    'Body filled half' =>
+                        imb.mitigated       := imb.open <= imb.close ? math.min(o, c) <= imb.middle : math.max(o, c) >= imb.middle
+                if imb.mitigated
+                    if not settings.mitigated_show
+                        if not na(imb.box)
+                            box.delete(imb.box)
+                            line.delete(imb.line_middle)
+                            label.delete(imb.lbl)
+                        IS.imbalance.remove(i)
+                    else
+                        imb.mitigated_time  := time
+    IS
+
+method AdjustMargins(ImbalanceStructure IS, int step) =>
+    int count = 0
+    if IS.imbalance.size() > 0
+        int buffer = time+((time-time[1])*(settings.padding+1+(settings.buffer*(step-1))))
+        
+        [rl, rh] = helper.ProximityRange(IS.settings.htf)
+
+        for i = 0 to IS.imbalance.size() - 1
+            imb = IS.imbalance.get(i)
+            if ((math.max(imb.open, imb.close) > rl) and (math.min(imb.open, imb.close) < rh)) and count < IS.settings.max_count
+                if IS.AddZone(imb, step)
+                    count := count+1
+            else
+                if not na(imb.box)
+                    box.delete(imb.box)
+                    label.delete(imb.lbl)
+                    line.delete((imb.line_middle))
+    IS
+// FindImbalance looks for imbalances and, if found, adds it to the list
+method FindImbalance(ImbalanceStructure IS, o, h, l, c, t, o1, h1, l1, c1, t1, o2, h2, l2, c2, t2) =>
+    if IS.settings.show and (h < l2 or l > h2) 
+        o = h < l2 ? l2 : h2
+        c = h < l2 ? h : l
+        if IS.imbalance.size() == 0 
+            IS.AddImbalance(o, c, t2)
+        else
+            if IS.imbalance.first().open_time < t2
+                IS.AddImbalance(o, c, t2)
+    IS
+
+method Process(ImbalanceStructure IS, float o, float h, float l, float c, int t, float o1, float h1, float l1, float c1, int t1, float o2, float h2, float l2, float c2, int t2) =>
+    var int visible = 0
+    if IS.settings.show
+        if not settings.ltf_hide or (settings.ltf_hide and helper.Validtimeframe(IS.settings.htf))
+            if IS.settings.show
+                IS.FindImbalance(o, h, l, c, t, o1, h1, l1, c1, t1, o2, h2, l2, c2, t2)
+                visible := 1
+        IS.CheckMitigated(o, h, l, c)
+    visible
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- Main call to start the process                                                                       ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+
+daily                                   := request.security(syminfo.tickerid, "1D", ta.atr(14))
+monthly                                 := request.security(syminfo.tickerid, "1M", ta.atr(14))
+
+[o_1, h_1, l_1, c_1, t_1]               = request.security(syminfo.tickerid, htf_1, [open[1], high[1], low[1], close[1], time[1]])
+[o1_1, h1_1, l1_1, c1_1, t1_1]          = request.security(syminfo.tickerid, htf_1, [open[2], high[2], low[2], close[2], time[2]])
+[o2_1, h2_1, l2_1, c2_1, t2_1]          = request.security(syminfo.tickerid, htf_1, [open[3], high[3], low[3], close[3], time[3]])
+TF_1 := FVG_1.Process(o_1, h_1, l_1, c_1, t_1, o1_1, h1_1, l1_1, c1_1, t1_1, o2_1, h2_1, l2_1, c2_1, t2_1)
+FVG_1.AdjustMargins(TF_1)
+
+[o_2, h_2, l_2, c_2, t_2]               = request.security(syminfo.tickerid, htf_2, [open[1], high[1], low[1], close[1], time[1]])
+[o1_2, h1_2, l1_2, c1_2, t1_2]          = request.security(syminfo.tickerid, htf_2, [open[2], high[2], low[2], close[2], time[2]])
+[o2_2, h2_2, l2_2, c2_2, t2_2]          = request.security(syminfo.tickerid, htf_2, [open[3], high[3], low[3], close[3], time[3]])
+TF_2 := TF_1 + FVG_2.Process(o_2, h_2, l_2, c_2, t_2, o1_2, h1_2, l1_2, c1_2, t1_2, o2_2, h2_2, l2_2, c2_2, t2_2)
+FVG_2.AdjustMargins(TF_2)
+
+[o_3, h_3, l_3, c_3, t_3]               = request.security(syminfo.tickerid, htf_3, [open[1], high[1], low[1], close[1], time[1]])
+[o1_3, h1_3, l1_3, c1_3, t1_3]          = request.security(syminfo.tickerid, htf_3, [open[2], high[2], low[2], close[2], time[2]])
+[o2_3, h2_3, l2_3, c2_3, t2_3]          = request.security(syminfo.tickerid, htf_3, [open[3], high[3], low[3], close[3], time[3]])
+TF_3 := TF_2 + FVG_3.Process(o_3, h_3, l_3, c_3, t_3, o1_3, h1_3, l1_3, c1_3, t1_3, o2_3, h2_3, l2_3, c2_3, t2_3)
+FVG_3.AdjustMargins(TF_3)
+
+[o_4, h_4, l_4, c_4, t_4]               = request.security(syminfo.tickerid, htf_4, [open[1], high[1], low[1], close[1], time[1]])
+[o1_4, h1_4, l1_4, c1_4, t1_4]          = request.security(syminfo.tickerid, htf_4, [open[2], high[2], low[2], close[2], time[2]])
+[o2_4, h2_4, l2_4, c2_4, t2_4]          = request.security(syminfo.tickerid, htf_4, [open[3], high[3], low[3], close[3], time[3]])
+TF_4 := TF_3 + FVG_4.Process(o_4, h_4, l_4, c_4, t_4, o1_4, h1_4, l1_4, c1_4, t1_4, o2_4, h2_4, l2_4, c2_4, t2_4)
+FVG_4.AdjustMargins(TF_4)
+
+[o_5, h_5, l_5, c_5, t_5]               = request.security(syminfo.tickerid, htf_5, [open[1], high[1], low[1], close[1], time[1]])
+[o1_5, h1_5, l1_5, c1_5, t1_5]          = request.security(syminfo.tickerid, htf_5, [open[2], high[2], low[2], close[2], time[2]])
+[o2_5, h2_5, l2_5, c2_5, t2_5]          = request.security(syminfo.tickerid, htf_5, [open[3], high[3], low[3], close[3], time[3]])
+TF_5 := TF_4 + FVG_5.Process(o_5, h_5, l_5, c_5, t_5, o1_5, h1_5, l1_5, c1_5, t1_5, o2_5, h2_5, l2_5, c2_5, t2_5)
+FVG_5.AdjustMargins(TF_5)
+
+[o_6, h_6, l_6, c_6, t_6]               = request.security(syminfo.tickerid, htf_6, [open[1], high[1], low[1], close[1], time[1]])
+[o1_6, h1_6, l1_6, c1_6, t1_6]          = request.security(syminfo.tickerid, htf_6, [open[2], high[2], low[2], close[2], time[2]])
+[o2_6, h2_6, l2_6, c2_6, t2_6]          = request.security(syminfo.tickerid, htf_6, [open[3], high[3], low[3], close[3], time[3]])
+TF_6 := TF_5 + FVG_6.Process(o_6, h_6, l_6, c_6, t_6, o1_6, h1_6, l1_6, c1_6, t1_6, o2_6, h2_6, l2_6, c2_6, t2_6)
+FVG_6.AdjustMargins(TF_6)
+
+//-------------------------2nd file ------------------------------------------------
+
+//35 works
+displayStyle = input.string(defval='Standard', title='Display Style', options=['Standard', 'Right Anchored'], inline='Display')
+mergebool = input.bool(defval=true, title='Merge Levels?', inline='Display')
+distanceright = input.int(defval=30, title='Distance', minval=5, maxval=500, inline='Dist')
+radistance = input.int(defval=250, title='Anchor Distance', minval=5, maxval=500, inline='Dist')
+labelsize = input.string(defval='Medium', title='Text Size', options=['Small', 'Medium', 'Large'])
+linesize = input.string(defval='Small', title='Line Width', options=['Small', 'Medium', 'Large'], inline='Line')
+linestyle = input.string(defval='Solid', title='Line Style', options=['Solid', 'Dashed', 'Dotted'], inline='Line')
+
+
+
+GlobalTextType = input.bool(defval=false, title='Global Text ShortHand', tooltip='Enable for shorthand text on all text')
+var globalcoloring = input.bool(defval=false, title='Global Coloring', tooltip='Enable for all color controls via one color', inline='GC')
+GlobalColor = input.color(title='', defval=color.white, inline='GC')
+//var show_tails = input(defval = false, title = "Always Show", type = input.bool)
+
+
+[daily_time, daily_open] = request.security(syminfo.tickerid, 'D', [time, open], lookahead=barmerge.lookahead_on)
+[dailyh_time, dailyh_open] = request.security(syminfo.tickerid, 'D', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[dailyl_time, dailyl_open] = request.security(syminfo.tickerid, 'D', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+cdailyh_open = request.security(syminfo.tickerid, 'D', high, lookahead=barmerge.lookahead_on)
+cdailyl_open = request.security(syminfo.tickerid, 'D', low, lookahead=barmerge.lookahead_on)
+var monday_time = time
+var monday_high = high
+var monday_low = low
+
+[weekly_time, weekly_open] = request.security(syminfo.tickerid, 'W', [time, open], lookahead=barmerge.lookahead_on)
+[weeklyh_time, weeklyh_open] = request.security(syminfo.tickerid, 'W', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[weeklyl_time, weeklyl_open] = request.security(syminfo.tickerid, 'W', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+
+[monthly_time, monthly_open] = request.security(syminfo.tickerid, 'M', [time, open], lookahead=barmerge.lookahead_on)
+[monthlyh_time, monthlyh_open] = request.security(syminfo.tickerid, 'M', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[monthlyl_time, monthlyl_open] = request.security(syminfo.tickerid, 'M', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+
+[quarterly_time, quarterly_open] = request.security(syminfo.tickerid, '3M', [time, open], lookahead=barmerge.lookahead_on)
+[quarterlyh_time, quarterlyh_open] = request.security(syminfo.tickerid, '3M', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[quarterlyl_time, quarterlyl_open] = request.security(syminfo.tickerid, '3M', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+
+[yearly_time, yearly_open] = request.security(syminfo.tickerid, '12M', [time, open], lookahead=barmerge.lookahead_on)
+[yearlyh_time, yearlyh_open] = request.security(syminfo.tickerid, '12M', [time, high], lookahead=barmerge.lookahead_on)
+[yearlyl_time, yearlyl_open] = request.security(syminfo.tickerid, '12M', [time, low], lookahead=barmerge.lookahead_on)
+
+
+[intra_time, intra_open] = request.security(syminfo.tickerid, '240', [time, open], lookahead=barmerge.lookahead_on)
+[intrah_time, intrah_open] = request.security(syminfo.tickerid, '240', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[intral_time, intral_open] = request.security(syminfo.tickerid, '240', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+//------------------------------ Inputs -------------------------------
+
+var is_intra_enabled = input.bool(defval=false, title='Open', group='4H', inline='4H')
+var is_intrarange_enabled = input.bool(defval=false, title='Prev H/L', group='4H', inline='4H')
+var is_intram_enabled = input.bool(defval=false, title='Prev Mid', group='4H', inline='4H')
+IntraTextType = input.bool(defval=false, title='ShortHand', group='4H', inline='4Hsh')
+
+var is_daily_enabled = input.bool(defval=true, title='Open', group='Daily', inline='Daily')
+var is_dailyrange_enabled = input.bool(defval=true, title='Prev H/L', group='Daily', inline='Daily')
+var is_dailym_enabled = input.bool(defval=true, title='Prev Mid', group='Daily', inline='Daily')
+DailyTextType = input.bool(defval=false, title='ShortHand', group='Daily', inline='Dailysh')
+
+var is_monday_enabled = input.bool(defval=false, title='Range', group='Monday Range', inline='Monday')
+var is_monday_mid = input.bool(defval=false, title='Mid', group='Monday Range', inline='Monday')
+var untested_monday = false
+MondayTextType = input.bool(defval=false, title='ShortHand', group='Monday Range', inline='Mondaysh')
+
+var is_weekly_enabled = input.bool(defval=true, title='Open', group='Weekly', inline='Weekly')
+var is_weeklyrange_enabled = input.bool(defval=true, title='Prev H/L', group='Weekly', inline='Weekly')
+var is_weekly_mid = input.bool(defval=true, title='Prev Mid', group='Weekly', inline='Weekly')
+WeeklyTextType = input.bool(defval=false, title='ShortHand', group='Weekly', inline='Weeklysh')
+
+var is_monthly_enabled = input.bool(defval=false, title='Open', group='Monthly', inline='Monthly')
+var is_monthlyrange_enabled = input.bool(defval=false, title='Prev H/L', group='Monthly', inline='Monthly')
+var is_monthly_mid = input.bool(defval=false, title='Prev Mid', group='Monthly', inline='Monthly')
+MonthlyTextType = input.bool(defval=false, title='ShortHand', group='Monthly', inline='Monthlysh')
+
+var is_quarterly_enabled = input.bool(defval=false, title='Open', group='Quarterly', inline='Quarterly')
+var is_quarterlyrange_enabled = input.bool(defval=false, title='Prev H/L', group='Quarterly', inline='Quarterly')
+var is_quarterly_mid = input.bool(defval=false, title='Prev Mid', group='Quarterly', inline='Quarterly')
+QuarterlyTextType = input.bool(defval=false, title='ShortHand', group='Quarterly', inline='Quarterlysh')
+
+var is_yearly_enabled = input.bool(defval=false, title='Open', group='Yearly', inline='Yearly')
+var is_yearlyrange_enabled = input.bool(defval=false, title='Current H/L', group='Yearly', inline='Yearly')
+var is_yearly_mid = input.bool(defval=false, title='Mid', group='Yearly', inline='Yearly')
+YearlyTextType = input.bool(defval=false, title='ShortHand', group='Yearly', inline='Yearlysh')
+
+var is_londonrange_enabled = input.bool(defval=false, title='London Range', group='FX Sessions', inline='FX')
+var is_usrange_enabled = input.bool(defval=false, title='New York Range', group='FX Sessions', inline='FX')
+var is_asiarange_enabled = input.bool(defval=false, title='Asia Range', group='FX Sessions', inline='FX')
+SessionTextType = input.bool(defval=false, title='ShortHand', group='FX Sessions', inline='FXColor')
+
+Londont = input.session("0800-1600", "London Session")
+USt = input.session("1400-2100", "New York Session")
+Asiat = input.session("0000-0900", "Tokyo Session")
+
+DailyColor = input.color(title='', defval=#08bcd4, group='Daily', inline='Dailysh')
+MondayColor = input.color(title='', defval=color.white, group='Monday Range', inline='Mondaysh')
+WeeklyColor = input.color(title='', defval=#fffcbc, group='Weekly', inline='Weeklysh')
+MonthlyColor = input.color(title='', defval=#08d48c, group='Monthly', inline='Monthlysh')
+YearlyColor = input.color(title='', defval=color.red, group='Yearly', inline='Yearlysh')
+quarterlyColor = input.color(title='', defval=color.red, group='Quarterly', inline='Quarterlysh')
+IntraColor = input.color(title='', defval=color.orange, group='4H', inline='4Hsh')
+LondonColor = input.color(title='', defval=color.white, group='FX Sessions', inline='FXColor')
+USColor = input.color(title='', defval=color.white, group='FX Sessions', inline='FXColor')
+AsiaColor = input.color(title='', defval=color.white, group='FX Sessions', inline='FXColor')
+var pdhtext = GlobalTextType or DailyTextType ? 'PDH' : 'Prev Day High'
+var pdltext = GlobalTextType or DailyTextType ? 'PDL' : 'Prev Day Low'
+var dotext = GlobalTextType or DailyTextType ? 'DO' : 'Daily Open'
+var pdmtext = GlobalTextType or DailyTextType ? 'PDM' : 'Prev Day Mid'
+
+var pwhtext = GlobalTextType or WeeklyTextType ? 'PWH' : 'Prev Week High'
+var pwltext = GlobalTextType or WeeklyTextType ? 'PWL' : 'Prev Week Low'
+var wotext = GlobalTextType or WeeklyTextType ? 'WO' : 'Weekly Open'
+var pwmtext = GlobalTextType or WeeklyTextType ? 'PWM' : 'Prev Week Mid'
+
+var pmhtext = GlobalTextType or MonthlyTextType ? 'PMH' : 'Prev Month High'
+var pmltext = GlobalTextType or MonthlyTextType ? 'PML' : 'Prev Month Low'
+var motext = GlobalTextType or MonthlyTextType ? 'MO' : 'Monthly Open'
+var pmmtext = GlobalTextType or MonthlyTextType ? 'PMM' : 'Prev Month Mid'
+
+var pqhtext = GlobalTextType or QuarterlyTextType ? 'PQH' : 'Prev Quarter High'
+var pqltext = GlobalTextType or QuarterlyTextType ? 'PQL' : 'Prev Quarter Low'
+var qotext = GlobalTextType or QuarterlyTextType ? 'QO' : 'Quarterly Open'
+var pqmtext = GlobalTextType or QuarterlyTextType ? 'PQM' : 'Prev Quarter Mid'
+
+var cyhtext = GlobalTextType or YearlyTextType ? 'CYH' : 'Current Year High'
+var cyltext = GlobalTextType or YearlyTextType ? 'CYL' : 'Current Year Low'
+var yotext = GlobalTextType or YearlyTextType ? 'YO' : 'Yearly Open'
+var cymtext = GlobalTextType or YearlyTextType ? 'CYM' : 'Current Year Mid'
+
+var pihtext = GlobalTextType or IntraTextType ? 'P-4H-H' : 'Prev 4H High'
+var piltext = GlobalTextType or IntraTextType ? 'P-4H-L' : 'Prev 4H Low'
+var iotext = GlobalTextType or IntraTextType ? '4H-O' : '4H Open'
+var pimtext = GlobalTextType or IntraTextType ? 'P-4H-M' : 'Prev 4H Mid'
+
+var pmonhtext = GlobalTextType or MondayTextType ? 'MDAY-H' : 'Monday High'
+var pmonltext = GlobalTextType or MondayTextType ? 'MDAY-L' : 'Monday Low'
+var pmonmtext = GlobalTextType or MondayTextType ? 'MDAY-M' : 'Monday Mid'
+
+var lhtext = GlobalTextType or SessionTextType ? 'Lon-H' : 'London High'
+var lltext = GlobalTextType or SessionTextType ? 'Lon-L' : 'London Low'
+var lotext = GlobalTextType or SessionTextType ? 'Lon-O' : 'London Open'
+
+var ushtext = GlobalTextType or SessionTextType ? 'NY-H' : 'New York High'
+var usltext = GlobalTextType or SessionTextType ? 'NY-L' : 'New York Low'
+var usotext = GlobalTextType or SessionTextType ? 'NY-O' : 'New York Open'
+
+var asiahtext = GlobalTextType or SessionTextType ? 'AS-H' : 'Asia High'
+var asialtext = GlobalTextType or SessionTextType ? 'AS-L' : 'Asia Low'
+var asiaotext = GlobalTextType or SessionTextType ? 'AS-O' : 'Asia Open'
+
+if globalcoloring == true
+    DailyColor := GlobalColor
+    MondayColor := GlobalColor
+    WeeklyColor := GlobalColor
+    MonthlyColor := GlobalColor
+    YearlyColor := GlobalColor
+    quarterlyColor := GlobalColor
+    IntraColor := GlobalColor
+    IntraColor
+
+if weekly_time != weekly_time[1]
+    untested_monday := false
+    untested_monday
+
+if is_monday_enabled == true and untested_monday == false
+    untested_monday := true
+    monday_time := daily_time
+    monday_high := cdailyh_open
+    monday_low := cdailyl_open
+    monday_low
+
+linewidthint = 1
+if linesize == 'Small'
+    linewidthint := 1
+    linewidthint
+if linesize == 'Medium'
+    linewidthint := 2
+    linewidthint
+if linesize == 'Large'
+    linewidthint := 3
+    linewidthint
+
+var DEFAULT_LINE_WIDTH = linewidthint
+var DEFAULT_TAIL_WIDTH = linewidthint
+
+fontsize = size.small
+
+if labelsize == 'Small'
+    fontsize := size.small
+    fontsize
+
+if labelsize == 'Medium'
+    fontsize := size.normal
+    fontsize
+
+if labelsize == 'Large'
+    fontsize := size.large
+    fontsize
+
+linestyles = line.style_solid
+if linestyle == 'Dashed'
+    linestyles := line.style_dashed
+    linestyles
+
+if linestyle == 'Dotted'
+    linestyles := line.style_dotted
+    linestyles
+
+var DEFAULT_LABEL_SIZE = fontsize
+var DEFAULT_LABEL_STYLE = label.style_none
+var DEFAULT_EXTEND_RIGHT = distanceright
+
+London = time(timeframe.period, Londont)
+US = time(timeframe.period, USt)
+Asia = time(timeframe.period, Asiat)
+
+var clondonhigh = 0.0
+var clondonlow = close
+var londontime = time
+var flondonhigh = 0.0
+var flondonlow = 0.0
+var flondonopen = 0.0
+
+var onelondonfalse = false
+if London
+    if high > clondonhigh
+        clondonhigh := high
+        clondonhigh
+    if low < clondonlow
+        clondonlow := low
+        clondonlow
+    if onelondonfalse
+        londontime := time
+        flondonopen := open
+        flondonopen
+    flondonhigh := clondonhigh
+    flondonlow := clondonlow
+    onelondonfalse := false
+    onelondonfalse
+else
+    if onelondonfalse == false
+        flondonhigh := clondonhigh
+        flondonlow := clondonlow
+        flondonlow
+    onelondonfalse := true
+
+    clondonhigh := 0.0
+    clondonlow := close
+    clondonlow
+
+//////////////////////////////////
+var cushigh = 0.0
+var cuslow = close
+var ustime = time
+var fushigh = 0.0
+var fuslow = 0.0
+var fusopen = 0.0
+
+var oneusfalse = false
+if US
+    if high > cushigh
+        cushigh := high
+        cushigh
+    if low < cuslow
+        cuslow := low
+        cuslow
+    if oneusfalse
+        ustime := time
+        fusopen := open
+        fusopen
+    fushigh := cushigh
+    fuslow := cuslow
+    oneusfalse := false
+    oneusfalse
+else
+    if oneusfalse == false
+        fushigh := cushigh
+        fuslow := cuslow
+        fuslow
+    oneusfalse := true
+
+    cushigh := 0.0
+    cuslow := close
+    cuslow
+
+//////////////////////////////////
+var casiahigh = 0.0
+var casialow = close
+var asiatime = time
+var fasiahigh = 0.0
+var fasialow = 0.0
+var fasiaopen = 0.0
+
+var oneasiafalse = false
+if Asia
+    if high > casiahigh
+        casiahigh := high
+        casiahigh
+    if low < casialow
+        casialow := low
+        casialow
+    if oneasiafalse
+        asiatime := time
+        fasiaopen := open
+        fasiaopen
+    fasiahigh := casiahigh
+    fasialow := casialow
+    oneasiafalse := false
+    oneasiafalse
+else
+    if oneasiafalse == false
+        fasiahigh := casiahigh
+        fasialow := casialow
+        fasialow
+    oneasiafalse := true
+
+    casiahigh := 0.0
+    casialow := close
+    casialow
+
+//------------------------------ Plotting ------------------------------
+var pricearray = array.new_float(0)
+var labelarray = array.new_label(0)
+f_LevelMerge(pricearray, labelarray, currentprice, currentlabel, currentcolor) =>
+    if mergebool and array.includes(pricearray, currentprice)
+        whichindex = array.indexof(pricearray, currentprice)
+        labelhold = array.get(labelarray, whichindex)
+        whichtext = label.get_text(labelhold)
+
+        label.set_text(labelhold, label.get_text(currentlabel) + ' / ' + whichtext)
+        label.set_text(currentlabel, '')
+        label.set_textcolor(labelhold, currentcolor)
+    else if mergebool
+        array.push(pricearray, currentprice)
+        array.push(labelarray, currentlabel)
+
+
+var can_show_daily = is_daily_enabled and timeframe.isintraday
+var can_show_weekly = is_weekly_enabled and not timeframe.isweekly and not timeframe.ismonthly
+var can_show_monthly = is_monthly_enabled and not timeframe.ismonthly
+
+type Lvl
+    bool on
+    int t
+    float p
+    string txt
+    color col
+
+var array<line> lvlLines = array.new<line>(40)
+var array<label> lvlLabels = array.new<label>(40)
+
+get_limit_right(bars) =>
+    timenow + (time - time[1]) * bars
+
+// the following code doesn't need to be processed on every candle
+if barstate.islast
+    pricearray := array.new_float(0)
+    labelarray := array.new_label(0)
+    levels = array.new<Lvl>()
+    levels.push(Lvl.new(is_londonrange_enabled, londontime, flondonhigh, lhtext, LondonColor))
+    levels.push(Lvl.new(is_londonrange_enabled, londontime, flondonlow, lltext, LondonColor))
+    levels.push(Lvl.new(is_londonrange_enabled, londontime, flondonopen, lotext, LondonColor))
+    levels.push(Lvl.new(is_usrange_enabled, ustime, fushigh, ushtext, USColor))
+    levels.push(Lvl.new(is_usrange_enabled, ustime, fuslow, usltext, USColor))
+    levels.push(Lvl.new(is_usrange_enabled, ustime, fusopen, usotext, USColor))
+    levels.push(Lvl.new(is_asiarange_enabled, asiatime, fasiahigh, asiahtext, AsiaColor))
+    levels.push(Lvl.new(is_asiarange_enabled, asiatime, fasialow, asialtext, AsiaColor))
+    levels.push(Lvl.new(is_asiarange_enabled, asiatime, fasiaopen, asiaotext, AsiaColor))
+    levels.push(Lvl.new(is_intra_enabled, intra_time, intra_open, iotext, IntraColor))
+    levels.push(Lvl.new(is_intrarange_enabled, intrah_time, intrah_open, pihtext, IntraColor))
+    levels.push(Lvl.new(is_intrarange_enabled, intral_time, intral_open, piltext, IntraColor))
+    levels.push(Lvl.new(is_intram_enabled, intrah_time, (intral_open + intrah_open) / 2, pimtext, IntraColor))
+    levels.push(Lvl.new(is_monday_enabled, monday_time, monday_high, pmonhtext, MondayColor))
+    levels.push(Lvl.new(is_monday_enabled, monday_time, monday_low, pmonltext, MondayColor))
+    levels.push(Lvl.new(is_monday_mid, monday_time, (monday_high + monday_low) / 2, pmonmtext, MondayColor))
+    levels.push(Lvl.new(is_daily_enabled, daily_time, daily_open, dotext, DailyColor))
+    levels.push(Lvl.new(is_dailyrange_enabled, dailyh_time, dailyh_open, pdhtext, DailyColor))
+    levels.push(Lvl.new(is_dailyrange_enabled, dailyl_time, dailyl_open, pdltext, DailyColor))
+    levels.push(Lvl.new(is_dailym_enabled, dailyh_time, (dailyl_open + dailyh_open) / 2, pdmtext, DailyColor))
+    levels.push(Lvl.new(is_weekly_enabled, weekly_time, weekly_open, wotext, WeeklyColor))
+    levels.push(Lvl.new(is_weeklyrange_enabled, weeklyh_time, weeklyh_open, pwhtext, WeeklyColor))
+    levels.push(Lvl.new(is_weeklyrange_enabled, weeklyl_time, weeklyl_open, pwltext, WeeklyColor))
+    levels.push(Lvl.new(is_weekly_mid, weeklyh_time, (weeklyl_open + weeklyh_open) / 2, pwmtext, WeeklyColor))
+    levels.push(Lvl.new(is_yearlyrange_enabled, yearlyl_time, yearlyl_open, cyltext, YearlyColor))
+    levels.push(Lvl.new(is_yearlyrange_enabled, yearlyh_time, yearlyh_open, cyhtext, YearlyColor))
+    levels.push(Lvl.new(is_yearly_enabled, yearly_time, yearly_open, yotext, YearlyColor))
+    levels.push(Lvl.new(is_yearly_mid, yearlyh_time, (yearlyl_open + yearlyh_open) / 2, cymtext, YearlyColor))
+    levels.push(Lvl.new(is_quarterly_enabled, quarterly_time, quarterly_open, qotext, quarterlyColor))
+    levels.push(Lvl.new(is_quarterlyrange_enabled, quarterlyh_time, quarterlyh_open, pqhtext, quarterlyColor))
+    levels.push(Lvl.new(is_quarterlyrange_enabled, quarterlyl_time, quarterlyl_open, pqltext, quarterlyColor))
+    levels.push(Lvl.new(is_quarterly_mid, quarterlyh_time, (quarterlyl_open + quarterlyh_open) / 2, pqmtext, quarterlyColor))
+    levels.push(Lvl.new(is_monthlyrange_enabled, monthlyl_time, monthlyl_open, pmltext, MonthlyColor))
+    levels.push(Lvl.new(is_monthlyrange_enabled, monthlyl_time, monthlyh_open, pmhtext, MonthlyColor))
+    levels.push(Lvl.new(is_monthly_mid, monthlyh_time, (monthlyl_open + monthlyh_open) / 2, pmmtext, MonthlyColor))
+    levels.push(Lvl.new(is_monthly_enabled, monthly_time, monthly_open, motext, MonthlyColor))
+
+    limitRight = get_limit_right(DEFAULT_EXTEND_RIGHT)
+    for i = 0 to levels.size() - 1
+        Lvl lv = levels.get(i)
+        if lv.on
+            int x1 = displayStyle == 'Right Anchored' ? get_limit_right(radistance) : lv.t
+            line ln = lvlLines.get(i)
+            label lb = lvlLabels.get(i)
+            if na(ln)
+                ln := line.new(x1, lv.p, limitRight, lv.p, xloc = xloc.bar_time, color = lv.col, width = DEFAULT_LINE_WIDTH, style = linestyles)
+                lb := label.new(limitRight, lv.p, lv.txt, xloc = xloc.bar_time, style = DEFAULT_LABEL_STYLE, textcolor = lv.col, size = DEFAULT_LABEL_SIZE)
+                lvlLines.set(i, ln)
+                lvlLabels.set(i, lb)
+            else
+                line.set_xy1(ln, x1, lv.p)
+                line.set_xy2(ln, limitRight, lv.p)
+                label.set_xy(lb, limitRight, lv.p)
+                label.set_text(lb, lv.txt)
+            f_LevelMerge(pricearray, labelarray, lv.p, lb, lv.col)
+
+    // the start of the monthly-open line is drawn from the first week of the month; if the first
+    // weekly candle (monday) is the 2nd of the month we fix the start on the previous weekly candle
+    if is_monthly_enabled and timeframe.isweekly and dayofweek(monthly_time) != dayofweek.monday
+        line.set_x1(lvlLines.get(35), monthly_time - (weekly_time - weekly_time[1]))
+
+var inputHighlightIntermediates = input(true, 'Highlight Intermediate Swing Highs and Lows')
+var inputIntermediateSize = input.string('Tiny', 'Intermediate Swing Label Size', options=['Auto', 'Tiny', 'Small', 'Normal'])
+var inputShowShortTermSwings = input(false, 'Short Term Swings')
+var inputPivotBars = input(2, 'Pivot Candles')
+var highcolor = input.color(color.red, title="High", tooltip="select a color for ST/IT Highs")
+var lowcolor = input.color(color.green, title="Low", tooltip="select a color for ST/IT Lows")
+
+var intermediateLabelSize = inputIntermediateSize == 'Auto' ? size.auto : inputIntermediateSize == 'Tiny' ? size.tiny : inputIntermediateSize == 'Small' ? size.small : size.normal
+
+// Parallel arrays for Swing High Data
+var float[] swingHighs = array.new_float()
+var label[] swingHighLabels = array.new_label()
+var bool[] swingHighIsHigher = array.new_bool()
+var bool[] swingHighIsIntermediate = array.new_bool()
+
+// Parallel arrays for Swing Low Data
+var float[] swingLows = array.new_float()
+var label[] swingLowLabels = array.new_label()
+var bool[] swingLowIsLower = array.new_bool()
+var bool[] swingLowIsIntermediate = array.new_bool()
+
+// see last element pushed an an array
+array_peek(arrayId) =>
+    int arraySize = array.size(arrayId)
+    if arraySize > 0
+        array.get(arrayId, arraySize - 1)
+    else
+        na
+
+// filters out swings that were not intermediate swings after all swings have been recorded.
+remove_short_term_swings() =>
+    if not inputShowShortTermSwings and barstate.islast
+        var swingHighCount = array.size(swingHighLabels)
+        var swingLowCount = array.size(swingLowLabels)
+
+        for i = 0 to swingHighCount - 1 by 1
+            if not array.get(swingHighIsIntermediate, i)
+                label.delete(array.get(swingHighLabels, i))
+
+        for i = 0 to swingLowCount - 1 by 1
+            if not array.get(swingLowIsIntermediate, i)
+                label.delete(array.get(swingLowLabels, i))
+
+
+// detect swing highs and lows
+swingHighPrice = ta.pivothigh(high, inputPivotBars, inputPivotBars)
+swingLowPrice = ta.pivotlow(low, inputPivotBars, inputPivotBars)
+
+
+if not na(swingHighPrice)
+    lastSwingHighPrice = array_peek(swingHighs)
+    isHigherHigh = swingHighPrice > lastSwingHighPrice
+    isLowerHigh = swingHighPrice < lastSwingHighPrice
+    swingLabel = label.new(bar_index[inputPivotBars], swingHighPrice, color=highcolor, yloc=yloc.price, style=label.style_circle, size=size.tiny)
+
+    // check if last swing high was intermediate
+    if isLowerHigh and array_peek(swingHighIsHigher)
+        // lower high after a higher high means the previous swing high was intermediate
+        if inputHighlightIntermediates
+            label.set_size(array_peek(swingHighLabels), intermediateLabelSize)
+            array.set(swingHighIsIntermediate, array.size(swingHighIsIntermediate) - 1, true)
+
+    // save swing
+    array.push(swingHighs, swingHighPrice)
+    array.push(swingHighLabels, swingLabel)
+    array.push(swingHighIsHigher, isHigherHigh)
+    array.push(swingHighIsIntermediate, false)  // can be filled in later, if a lower high forms next
+
+if not na(swingLowPrice)
+    lastSwingLowPrice = array_peek(swingLows)
+    isHigherLow = swingLowPrice > lastSwingLowPrice
+    isLowerLow = swingLowPrice < lastSwingLowPrice
+    swingLabel = label.new(bar_index[inputPivotBars], swingLowPrice, color=lowcolor, yloc=yloc.price, style=label.style_circle, size=size.tiny)
+
+    // check if last swing low was intermediate
+    if isHigherLow and array_peek(swingLowIsLower)
+        // higher low after a lower low means the previous swing low was intermediate
+        if inputHighlightIntermediates
+            label.set_size(array_peek(swingLowLabels), intermediateLabelSize)
+            array.set(swingLowIsIntermediate, array.size(swingLowIsIntermediate) - 1, true)
+
+    // save swing
+    array.push(swingLows, swingLowPrice)
+    array.push(swingLowLabels, swingLabel)
+    array.push(swingLowIsLower, isLowerLow)
+    array.push(swingLowIsIntermediate, false)  // can be filled in later if a higher low forms next
+
+
+remove_short_term_swings()
+
+
+//IMBALANCE
+show_IMB = input.bool(true, "Imbalance", group='IMBALANCE')
+imbalancecolor = input.color(color.yellow, title="Imbalance Color", group='IMBALANCE')
+fvgTransparency  = input(title="Transparency", defval=60, group='IMBALANCE')
+fvgboxLength = input.int(title='Length', defval=0, group='IMBALANCE')
+
+fvgisUp(index) =>
+    close[index] > open[index]
+
+fvgisDown(index) =>
+    close[index] < open[index]
+
+
+fvgisObUp(index) =>
+    fvgisDown(index + 1) and fvgisUp(index) and close[index] > high[index + 1]
+
+
+fvgisObDown(index) =>
+    fvgisUp(index + 1) and fvgisDown(index) and close[index] < low[index + 1]
+
+
+bullishFvg = low[0] > high[2]
+bearishFvg = high[0] < low[2]
+if bullishFvg and show_IMB
+    box.new(left=bar_index - 1, top=low[0], right=bar_index + fvgboxLength, bottom=high[2], bgcolor=color.new(imbalancecolor, fvgTransparency), border_color=color.new(imbalancecolor, fvgTransparency))
+if bearishFvg and show_IMB
+    box.new(left=bar_index - 1, top=low[2], right=bar_index + fvgboxLength, bottom=high[0], bgcolor=color.new(imbalancecolor, fvgTransparency), border_color=color.new(imbalancecolor, fvgTransparency))
+//////////////////// FVG //////////////////
+
+//---------------------------------opening gapes intrigation---------------------------------------------
+
+
+
+type gap
+    float high
+    float low
+    int start
+    int end
+
+var string nwogGroup = "New Week Opening Gap"
+var string ndogGroup = "New Day Opening Gap"
+var string generalSettings = "General Settings"
+var string openLineSettings = "Week & Day Open"
+
+bool showNWOG = input.bool(true, "", inline = "1", group = nwogGroup)
+string nwogLabel = input.string("NWOG", "", inline = "1", group = nwogGroup)
+color nwogBg = input.color(color.rgb(164, 249, 73, 85), "", inline = "1", group = nwogGroup)
+bool showNwogCE = input.bool(false, "NWOG C.E.", tooltip = "C.E. - Consequent Encroachment or 'middle point' of any Gap or Inefficiency.", group = nwogGroup, inline = "2")
+string nwogCEStyle = input.string("dotted", "", options = ["dotted", "dashed", "solid"], group = nwogGroup, inline = "2")
+color nwogCEColor = input.color(color.blue, "", group = nwogGroup, inline = "2")
+string nwogLabelXPosition = input.string('right', title = "Label", options = ["left", "center", "right"], inline = "5", group = nwogGroup)
+string nwogLabelYPosition = input.string('top', title = "", options = ["top", "center", "bottom"], inline = "5", group = nwogGroup)
+string nwogLabelSize = input.string('small', title = "", options = ["tiny", "small", "normal", "large", "huge"], inline = "5", group = nwogGroup)
+color nwogLabelColor = input.color(color.black, "", inline = "5", group = nwogGroup)
+int nwogsAmount = input.int(4, "Previous NWOGs", minval = 1, maxval = 100, inline = "3", group = nwogGroup)
+color previousNwogBg = input.color(color.rgb(0, 0, 0, 90), "", inline = "3", group = nwogGroup)
+bool extendAllNwogs = input.bool(false, "Extend Previous NWOGs", group = nwogGroup)
+bool extendToCurrentDayCloseTime = input.bool(true, "Extend to Current Day", tooltip = "Otherwise it will be extended to the end of the week", group = nwogGroup)
+
+bool showNDOG = input.bool(true, "", inline = "2", group = ndogGroup)
+string ndogLabel = input.string("NDOG", "", inline = "2", group = ndogGroup)
+color ndogBg = input.color(color.rgb(255, 235, 59, 85), "", inline = "2", group = ndogGroup)
+bool showNdogCE = input.bool(false, "NDOG C.E.", tooltip = "C.E. - Consequent Encroachment or 'middle point' of any Gap or Inefficiency.", group = ndogGroup, inline = "3")
+string ndogCEStyle = input.string("dotted", "", options = ["dotted", "dashed", "solid"], group = ndogGroup, inline = "3")
+color ndogCEColor = input.color(color.blue, "", group = ndogGroup, inline = "3")
+string ndogLabelXPosition = input.string('right', title = "Label", options = ["left", "center", "right"], inline = "5", group = ndogGroup)
+string ndogLabelYPosition = input.string('top', title = "", options = ["top", "center", "bottom"], inline = "5", group = ndogGroup)
+string ndogLabelSize = input.string('small', title = "", options = ["tiny", "small", "normal", "large", "huge"], inline = "5", group = ndogGroup)
+color ndogLabelColor = input.color(color.black, "", inline = "5", group = ndogGroup)
+int ndogsAmount = input.int(4, "Previous NDOG", minval = 1, maxval = 100, inline = "4", group = ndogGroup)
+color previousNdogBg = input.color(color.rgb(0, 0, 0, 90), "", inline = "4", group = ndogGroup)
+bool extendAllNdogs = input.bool(false, "Extend Previous NDOGs", group = ndogGroup)
+
+bool eventHorizon = input.bool(false, "Event Horizon", inline = "2", group = generalSettings)
+string eventHorizonLineStyle = input.string("dashed", "", options = ["dotted", "dashed", "solid"], group = generalSettings, inline = "2")
+color eventHorizonLineColor = input.color(color.red, "", inline = "2", group = generalSettings)
+
+bool fiveToSixGap = input.bool(true, "5pm to 6pm GAP", tooltip = "This option will show only 5pm to 6pm gaps. If you will see at the daily timeframe there is a big difference between previous day close and current day open GAP and 5pm to 6pm GAP. This option allows you to choose which GAP to use.", group = generalSettings)
+bool showPriceLabels = input.bool(false, "Price Labels", inline = "1", group = generalSettings)
+string priceLabelSize = input.string('small', title = "", options = ["tiny", "small", "normal", "large", "huge"], inline = "1", group = generalSettings)
+color priceLabelColor = input.color(color.black, "", inline = "1", group = generalSettings)
+bool showDateLabel = input.bool(true, "Show date label", group = generalSettings)
+string dateFormat = input.string("dd.MM", title = "Date Format", options = ["dd.MM", "MM.dd", "dd.MM.yy", "MM.dd.yy"], group = generalSettings)
+
+getGapData() =>
+    gap.new(math.max(close[1], open), math.min(close[1], open), time, time_close)
+
+gap weekOpeningGap = request.security(syminfo.tickerid, "1W", getGapData(), lookahead =  barmerge.lookahead_on)
+[dayOpeningGap, currentDayTimeClose] = request.security(syminfo.tickerid, "1D", [getGapData(), time_close], lookahead =  barmerge.lookahead_on)
+[isNewWeek, hourPreviousBarClose, hourCurrentBarOpen] = request.security(syminfo.tickerid, "240", [helpers.isNewbar("W"), close[1], open], lookahead =  barmerge.lookahead_on)
+
+if timeframe.isintraday and helpers.isNewbar("D") and fiveToSixGap
+    dayOpeningGap.high := math.max(close[1], open)
+    dayOpeningGap.low := math.min(close[1], open)
+
+if timeframe.multiplier < 60
+    if isNewWeek and fiveToSixGap
+        weekOpeningGap.high := math.max(hourPreviousBarClose, hourCurrentBarOpen)
+        weekOpeningGap.low := math.min(hourPreviousBarClose, hourCurrentBarOpen)
+else if (timeframe.isdaily or timeframe.isintraday) and helpers.isNewbar("W") and fiveToSixGap
+    weekOpeningGap.high := math.max(close[1], open)
+    weekOpeningGap.low := math.min(close[1], open)
+
+var array<box> nwogArray = array.new<box>(0)
+var array<line> nwogCEArray = array.new<line>(0)
+var array<label> nwogHighLabel = array.new<label>(0)
+var array<label> nwogCELabel = array.new<label>(0)
+var array<label> nwogLowLabel = array.new<label>(0)
+
+var array<box> ndogArray = array.new<box>(0)
+var array<line> ndogCEArray = array.new<line>(0)
+var array<label> ndogHighLabel = array.new<label>(0)
+var array<label> ndogCELabel = array.new<label>(0)
+var array<label> ndogLowLabel = array.new<label>(0)
+
+var line eventHorizonLine = na
+
+if showNWOG and (timeframe.isdaily or timeframe.isintraday) 
+    if helpers.isNewbar("W") // if (hour(time, "America/New_York") == 9 and minute(time, America/New_York) == 30 and nineThirtyGap) or (not nineThirtyGap and helpers.isNewbar("W"))
+        string weekLabel = showDateLabel ? str.format_time(weekOpeningGap.start, dateFormat, syminfo.timezone) + " - " + str.format_time(weekOpeningGap.end, dateFormat, syminfo.timezone) + " | " + nwogLabel : nwogLabel
+        float nwogCePrice = (weekOpeningGap.high + weekOpeningGap.low) / 2
+        
+        array.push(nwogArray, box.new(weekOpeningGap.start, weekOpeningGap.high, weekOpeningGap.end, weekOpeningGap.low, xloc = xloc.bar_time, bgcolor = nwogBg, border_width = 0, text = weekLabel, text_size = helpers.getTextSize(nwogLabelSize), text_halign = helpers.getBoxTextPosition(nwogLabelXPosition), text_valign = helpers.getBoxTextPosition(nwogLabelYPosition), text_color = nwogLabelColor))
+        
+        if showNwogCE
+            array.push(nwogCEArray, line.new(weekOpeningGap.start, nwogCePrice, weekOpeningGap.end, nwogCePrice, xloc = xloc.bar_time, style = helpers.getLineStyle(nwogCEStyle), color = nwogCEColor))
+        
+        if showPriceLabels
+            array.push(nwogHighLabel, label.new(weekOpeningGap.end, weekOpeningGap.high, str.tostring(weekOpeningGap.high, format.mintick), style = label.style_label_lower_left, xloc = xloc.bar_time, color = color.rgb(0, 0, 0, 100), textcolor = priceLabelColor, size = helpers.getTextSize(priceLabelSize)))
+            array.push(nwogCELabel, label.new(weekOpeningGap.end, nwogCePrice, str.tostring(nwogCePrice, format.mintick), style = label.style_label_left, xloc = xloc.bar_time, color = color.rgb(0, 0, 0, 100), textcolor = priceLabelColor, size = helpers.getTextSize(priceLabelSize)))
+            array.push(nwogLowLabel, label.new(weekOpeningGap.end, weekOpeningGap.low, str.tostring(weekOpeningGap.low, format.mintick), style = label.style_label_upper_left, xloc = xloc.bar_time, color = color.rgb(0, 0, 0, 100), textcolor = priceLabelColor, size = helpers.getTextSize(priceLabelSize)))
+
+        if array.size(nwogArray) > nwogsAmount
+            box.delete(array.shift(nwogArray))
+            
+            if showNwogCE
+                line.delete(array.shift(nwogCEArray))
+            
+            if showPriceLabels
+                label.delete(array.shift(nwogHighLabel))
+                label.delete(array.shift(nwogCELabel))
+                label.delete(array.shift(nwogLowLabel))
+        
+        if eventHorizon and array.size(nwogArray) > 1
+            box currentNwog = array.last(nwogArray)
+            box previousNwog = array.get(nwogArray, array.size(nwogArray) - 2)
+
+            float currentNwog_high = box.get_top(currentNwog)
+            float currentNwog_low = box.get_bottom(currentNwog)
+            
+            float previousNwog_high = box.get_top(previousNwog)
+            float previousNwog_low = box.get_bottom(previousNwog)
+            
+            float eventHorizonLevel = 0.0
+
+            if currentNwog_high > previousNwog_high and currentNwog_low > previousNwog_high
+                eventHorizonLevel := (currentNwog_low + previousNwog_high) / 2
+            else if previousNwog_high > currentNwog_high and previousNwog_low > currentNwog_high
+                eventHorizonLevel := (previousNwog_low + currentNwog_high) / 2
+
+            eventHorizonLine := line.new(weekOpeningGap.start, eventHorizonLevel, weekOpeningGap.end, eventHorizonLevel, xloc = xloc.bar_time, style = helpers.getLineStyle(eventHorizonLineStyle), color = eventHorizonLineColor)
+            line.delete(eventHorizonLine[1])
+
+    if helpers.isNewbar("D") 
+        if extendAllNwogs and array.size(nwogArray) > 0
+            for i = array.size(nwogArray) - 1 to 0
+                extendTo = extendToCurrentDayCloseTime ? currentDayTimeClose : weekOpeningGap.end
+                box.set_right(array.get(nwogArray, i), extendTo)
+                
+                if i != array.size(nwogArray) - 1
+                    box.set_bgcolor(array.get(nwogArray, i), previousNwogBg)
+
+                if showNwogCE
+                    line.set_x2(array.get(nwogCEArray, i), extendTo)
+                
+                if showPriceLabels
+                    label.set_x(array.get(nwogHighLabel, i), extendTo)
+                    label.set_x(array.get(nwogCELabel, i), extendTo)
+                    label.set_x(array.get(nwogLowLabel, i), extendTo)
+
+        if extendToCurrentDayCloseTime and array.size(nwogArray) > 0
+            box.set_right(array.last(nwogArray), currentDayTimeClose)
+            
+            if showNwogCE
+                line.set_x2(array.last(nwogCEArray), currentDayTimeClose)
+                
+            if showPriceLabels
+                label.set_x(array.last(nwogHighLabel), currentDayTimeClose)
+                label.set_x(array.last(nwogCELabel), currentDayTimeClose)
+                label.set_x(array.last(nwogLowLabel), currentDayTimeClose)
+            
+            if eventHorizon
+                line.set_x2(eventHorizonLine, currentDayTimeClose)
+
+if showNDOG and timeframe.isintraday
+    if helpers.isNewbar("D")// and dayOpeningGap.high != dayOpeningGap.low
+        if (dayofweek != dayofweek.sunday and showNWOG) or not showNWOG
+            string dayLabel = showDateLabel ? str.format_time(dayOpeningGap.start, dateFormat, syminfo.timezone) + " | " + ndogLabel : ndogLabel //showDayLabels ? getDayOfWeekLabel(dayofweek) + " | " + ndogLabel : ndogLabel
+            float ndogCePrice = (dayOpeningGap.high + dayOpeningGap.low) / 2
+            
+            array.push(ndogArray, box.new(dayOpeningGap.start, dayOpeningGap.high, dayOpeningGap.end, dayOpeningGap.low, xloc = xloc.bar_time, bgcolor = ndogBg, border_width = 0, text = dayLabel, text_size = helpers.getTextSize(ndogLabelSize), text_halign = helpers.getBoxTextPosition(ndogLabelXPosition), text_valign = helpers.getBoxTextPosition(ndogLabelYPosition), text_color = ndogLabelColor))
+        
+            if showNdogCE
+                array.push(ndogCEArray, line.new(dayOpeningGap.start, ndogCePrice, dayOpeningGap.end, ndogCePrice, xloc = xloc.bar_time, style = helpers.getLineStyle(ndogCEStyle), color = ndogCEColor))
+
+            if showPriceLabels
+                array.push(ndogHighLabel, label.new(dayOpeningGap.end, dayOpeningGap.high, str.tostring(dayOpeningGap.high, format.mintick), style = label.style_label_lower_left, xloc = xloc.bar_time, color = color.rgb(0, 0, 0, 100), textcolor = priceLabelColor, size = helpers.getTextSize(priceLabelSize)))
+                array.push(ndogCELabel, label.new(dayOpeningGap.end, ndogCePrice, str.tostring(ndogCePrice, format.mintick), style = label.style_label_left, xloc = xloc.bar_time, color = color.rgb(0, 0, 0, 100), textcolor = priceLabelColor, size = helpers.getTextSize(priceLabelSize)))
+                array.push(ndogLowLabel, label.new(dayOpeningGap.end, dayOpeningGap.low, str.tostring(dayOpeningGap.low, format.mintick), style = label.style_label_upper_left, xloc = xloc.bar_time, color = color.rgb(0, 0, 0, 100), textcolor = priceLabelColor, size = helpers.getTextSize(priceLabelSize)))
+
+            if array.size(ndogArray) > ndogsAmount
+                box.delete(array.shift(ndogArray))
+
+                if showNdogCE
+                    line.delete(array.shift(ndogCEArray))
+                
+                if showPriceLabels
+                    label.delete(array.shift(ndogHighLabel))
+                    label.delete(array.shift(ndogCELabel))
+                    label.delete(array.shift(ndogLowLabel))
+
+        
+    if extendAllNdogs and array.size(ndogArray) > 0
+        for i = 0 to array.size(ndogArray) - 1
+            box.set_right(array.get(ndogArray, i), dayOpeningGap.end)
+            
+            if (showNWOG and dayofweek == dayofweek.sunday and i <= array.size(ndogArray) - 1) or i < array.size(ndogArray) - 1
+                box.set_bgcolor(array.get(ndogArray, i), previousNdogBg)
+
+            if showNdogCE
+                line.set_x2(array.get(ndogCEArray, i), dayOpeningGap.end)
+            
+            if showPriceLabels
+                label.set_x(array.get(ndogHighLabel, i), dayOpeningGap.end)
+                label.set_x(array.get(ndogCELabel, i), dayOpeningGap.end)
+                label.set_x(array.get(ndogLowLabel, i), dayOpeningGap.end)
+				
+//----------------------------------------------------------opening gapes intrigation--------------------------------------------
+
+//=====================================================================================
+// Regular Trading Hours GAP (RTH/ETH gap) - merged from @twingall's indicator
+// Gap between the 4:15pm (4pm on SPY) close and the 9:30am NY open. Index futures (ES, YM, NQ).
+// Boxes only appear on 15min or lower timeframes. Identifiers renamed where they clashed with ICT code.
+//=====================================================================================
+rthBoxMs = math.round(6.5*1000*3600)
+longDay = 24*1000*3600
+isSPY = str.tostring(syminfo.ticker) =="SPY"? true:false
+_16_00= timestamp('America/New_York', year, month, dayofmonth, 16, 00, 00)
+_16_15= timestamp('America/New_York', year, month, dayofmonth, 16, 15, 00)
+_9_30 = timestamp('America/New_York', year, month, dayofmonth, 9, 30, 00)
+colorNone = color.new(color.white, 100)
+showBox = input.bool(true, "Standard Gap (4:15pm close - 9:30am open)| ", inline = '-3' , group = 'boxes & midlines', tooltip = "Shows the standard RTH gap from the close at 4:15pm to 9:30am open (New York Time)\n\n Note on SPY RTH close is 4pm; this will automatically adjust to this fact")
+boxColor = input.color(color.new(color.purple, 90), "Box", inline ='-3', group = 'boxes & midlines')
+borderColor=input.color(color.new(color.blue, 80), "Border", inline ='-3', group = 'boxes & midlines')
+showRthMidline = input.bool(true, "show midline", inline ='-2', group = 'boxes & midlines')
+rthMidCol = input.color(color.red, "", inline ='-2', group = 'boxes & midlines')
+rthMidStyle = input.string(line.style_dotted, "| style:", options = [line.style_solid, line.style_dotted, line.style_dashed, line.style_arrow_left, line.style_arrow_right, line.style_arrow_both], inline ='-2', group = 'boxes & midlines' )
+showRthMidLab = input.bool(true, "show label", inline ='-2', group = 'boxes & midlines')
+
+showHiLoBox = input.bool (false, "High-low Gap (4:15pm - 9:30am) |", inline ='-1', group = 'boxes & midlines', tooltip = "Shows the gap (as box) between high/low of final candle (the candle ending at 4:15pm) to the high/low of first RTH candle (the candle starting at 9:30am)\n\n(New York Time)\n\nNote that as you climb higher in timeframes, the last RTH candle and first RTH candle will be larger =>> wicks more likely to overlap =>> less gap boxes will appear. Ideal use is 5min timeframe or lower.")
+boxColor2 = input.color(color.new(color.green, 75), "Box", inline ='-1', group = 'boxes & midlines')
+borderColor2=input.color(color.new(color.red, 80), "Border", inline ='-1', group = 'boxes & midlines')
+showHiLoMidline = input.bool(false, "show midline", inline ='0', group = 'boxes & midlines')
+HiLoMidCol = input.color(color.green, "", inline ='0', group = 'boxes & midlines')
+HiLoMidStyle = input.string(line.style_dotted, "| style:", options = [line.style_solid, line.style_dotted, line.style_dashed, line.style_arrow_left, line.style_arrow_right, line.style_arrow_both], inline ='0', group = 'boxes & midlines' )
+showHiloMidLab = input.bool(true, "show label", inline ='0', group = 'boxes & midlines')
+
+boxesToShow =input.int(2, "historical Boxes & Midlines to show", inline = '1', group = 'boxes & midlines')
+showTxt =input.bool(true, "Box text", inline='2', group = 'boxes & midlines')
+boxTxtCol = input.color(color.new(color.gray, 30), "", inline ='2', group = 'boxes & midlines')
+txtValignChoice = input.string(text.align_top, "Position:", options = [text.align_top, text.align_center, text.align_bottom], inline ='2', group = 'boxes & midlines')
+txtHalignChoice = input.string(text.align_center, "", options = [text.align_center, text.align_left, text.align_right], inline ='2', group = 'boxes & midlines')
+extendBoxRight = input.bool (false, "extend boxes & midlines right", inline ='3', group = 'boxes & midlines', tooltip = "recommend only using this setting with historical boxes to show = 1")
+
+extChoiceBox = extendBoxRight?extend.right:extend.none
+
+openOffset = input.int(0, "+/- offset (minutes) from 9:30am NY time", step = 5, group = 'time adjustment (for non-USA based Indices)', tooltip = "Added to support non-USA based indices. User can input their offset from NY time (UTC-4), then save settings (bottom left)\n\nI.e. you might try offset values of '-300' and '-300' for London based Indices; Untested, try it out for yourself.\n\n Note that the offset in minutes must be divisible into the timeframe you're plotting on, or nothing will display")
+closeOffset = input.int(0, "+/- offset (minutes) from 4:15pm NY time", step = 5, group = 'time adjustment (for non-USA based Indices)')
+
+linesToShow=input.int(2, "historical RTH close Lines & labels to show", group = 'RTH close lines & labels')
+showRTHcloseLine =input.bool(true, "show prev RTH close line", inline ='2', group = 'RTH close lines & labels')
+showRTHcloseLab = input.bool(true, "show price label", inline ='2', group = 'RTH close lines & labels')
+
+RTHcloseColor = input.color(color.new(color.blue, 10), "", inline ='2', group = 'RTH close lines & labels')
+extendLineRight = input.bool (false, "extend lines right", inline ='3', group = 'RTH close lines & labels')
+linestyleRTH = input.string(line.style_dotted, "| style:", options = [line.style_solid, line.style_dotted, line.style_dashed, line.style_arrow_left, line.style_arrow_right, line.style_arrow_both], inline ='3', group = 'RTH close lines & labels')
+RTH_line_width = input.int(2, "| width", options = [1,2,3,4], inline ='3', group = 'RTH close lines & labels')
+extChoiceLine = extendLineRight?extend.right:extend.none
+_minute = 1000*60
+rthCloseA = ta.valuewhen(time_close == _16_00 + closeOffset*_minute, close, 0)
+rthCloseB = ta.valuewhen(time_close ==_16_15 + closeOffset *_minute, close, 0)
+rthClose = isSPY ? rthCloseA : rthCloseB
+
+DayOfWeekStr(int _time)=>
+    string DoW = dayofweek(_time, 'America/New_York') == 2? "Mon":
+                 dayofweek(_time, 'America/New_York') == 3? "Tues":
+                 dayofweek(_time, 'America/New_York') == 4? "Weds":
+                 dayofweek(_time, 'America/New_York') == 5? "Thurs":
+                 dayofweek(_time, 'America/New_York') == 6? "Fri":na
+
+useNoPlotSession = input.bool(false, "Use no plot session (when 'extend right' is toggled on)", group = "no plot session", inline='1', tooltip = "boxes/lines/labels will stop painting through these hours..\n\nBut will resume painting to the last bar index outside of these hours\n\n only applies when 'extend boxes and lines right' is toggled on")
+inputSession1 = input.session('1600-0830', title='stop painting boxes/lines during these hours', group = "no plot session", inline='2')
+inSession1 = not na(time(timeframe.period, str.tostring(inputSession1), "America/New_York")) 
+barTime = timeframe.in_seconds(timeframe.period)*1000
+
+var int rthNoPlotMs = 0
+
+var box bx = na
+var array<box> boxArr = array.new<box>(0)
+var line lnRthMid = na
+var array<line> lnRthMidArr = array.new<line>(0)
+var label labRthMid =na
+var array<label> labRthMidArr = array.new<label>(0)
+rthMidVal = math.min(rthClose, open) + 0.5* math.abs(rthClose-open)
+if time == (_9_30 +openOffset *_minute) and showBox
+    bx:=box.new(time, rthClose, extendBoxRight?last_bar_time: time+rthBoxMs, open, xloc = xloc.bar_time,bgcolor = boxColor, border_color = borderColor, extend =extend.none , text =showTxt?"rth >>"+DayOfWeekStr(time):"", text_color = boxTxtCol, text_size = size.small, text_valign =txtValignChoice, text_halign = txtHalignChoice) //time+rthBoxMs
+    array.push(boxArr,bx)
+    if array.size(boxArr)>boxesToShow
+        box.delete(array.shift(boxArr))
+
+if time == (_9_30 +openOffset *_minute) and showRthMidline
+    lnRthMid:= line.new(time, rthMidVal, extendBoxRight?last_bar_time: time+rthBoxMs, rthMidVal, xloc = xloc.bar_time, color = rthMidCol, style = rthMidStyle, width = 1, extend = extend.none )
+    array.push(lnRthMidArr, lnRthMid)
+    labRthMid:= label.new(extendBoxRight?last_bar_time: time+rthBoxMs, rthMidVal, "mid >>"+DayOfWeekStr(time)+" = " + str.tostring(rthMidVal, format.mintick), xloc=xloc.bar_time, textcolor = showRthMidLab?rthMidCol:colorNone, style=label.style_none )
+    array.push(labRthMidArr, labRthMid)
+    if array.size(lnRthMidArr)>boxesToShow
+        line.delete(array.shift(lnRthMidArr))
+    if array.size(labRthMidArr)>boxesToShow
+        label.delete(array.shift(labRthMidArr))
+
+four15HiA = ta.valuewhen(time_close == _16_00 + closeOffset*_minute, high, 0)
+four15HiB = ta.valuewhen(time_close ==_16_15 + closeOffset *_minute, high, 0)
+four15Hi = isSPY ? four15HiA : four15HiB
+four15LoA = ta.valuewhen(time_close == _16_00 + closeOffset*_minute, low, 0)
+four15LoB = ta.valuewhen(time_close ==_16_15 + closeOffset *_minute, low, 0)
+four15Lo = isSPY ? four15LoA : four15LoB
+four15HiLo = low>four15Hi?four15Hi:high<four15Lo?four15Lo:na
+HiLo = low>four15Hi? low:high<four15Lo?high:na
+var box bx2 = na
+var array<box> boxArr2 = array.new<box>(0)
+var line lnHiLoMid = na
+var array<line> lnHiLoMidArr = array.new<line>(0)
+var label labHiLoMid =na
+var array<label> labHiLoMidArr = array.new<label>(0)
+HiLoMidVal = math.min(four15HiLo, HiLo) + 0.5* math.abs(four15HiLo-HiLo)
+if time == (_9_30 +openOffset *_minute) and showHiLoBox
+    bx2:=box.new(time, four15HiLo, extendBoxRight?last_bar_time: time+rthBoxMs,HiLo, xloc = xloc.bar_time,bgcolor = boxColor2, border_color = borderColor2, extend = extend.none , text =showTxt?"hilo >>"+DayOfWeekStr(time):"", text_color = boxTxtCol, text_size = size.small, text_valign =txtValignChoice, text_halign = txtHalignChoice)
+    array.push(boxArr2,bx2)
+    if array.size(boxArr2)>boxesToShow
+        box.delete(array.shift(boxArr2))
+if time == (_9_30 +openOffset *_minute) and showHiLoMidline
+    lnHiLoMid:= line.new(time, HiLoMidVal, extendBoxRight?last_bar_time: time+rthBoxMs, HiLoMidVal, xloc = xloc.bar_time, color = HiLoMidCol, style = HiLoMidStyle, width = 1, extend = extend.none)
+    array.push(lnHiLoMidArr, lnHiLoMid)
+    labHiLoMid:= label.new(extendBoxRight?last_bar_time: time+rthBoxMs, HiLoMidVal, "mid >>"+DayOfWeekStr(time)+" = " + str.tostring(HiLoMidVal, format.mintick), xloc=xloc.bar_time, textcolor = showHiloMidLab?HiLoMidCol:colorNone, style=label.style_none )
+    array.push(labHiLoMidArr, labHiLoMid)
+    if array.size(lnHiLoMidArr)>boxesToShow
+        line.delete(array.shift(lnHiLoMidArr))
+    if array.size(labHiLoMidArr)>boxesToShow
+        label.delete(array.shift(labHiLoMidArr))
+
+var line rthCloseLn = na
+var label lab1 =na
+var array<line> lineArr = array.new<line>(0)
+var array<label> labelArr = array.new<label>(0)
+condRTHclose = isSPY? session.islastbar_regular: (time ==_16_15 + closeOffset *_minute)
+if condRTHclose 
+    rthCloseLn:=line.new(time_close,isSPY?close:close[1], extendLineRight?last_bar_time:time+longDay, isSPY?close:close[1] , xloc=xloc.bar_time, color = showRTHcloseLine?RTHcloseColor:colorNone, extend =extend.none , style=linestyleRTH, width =RTH_line_width)
+    array.push(lineArr,rthCloseLn)
+    lab1:=label.new(extendLineRight?last_bar_time:time_close[1]+longDay, isSPY?close:close[1],DayOfWeekStr(time) + " rth close = "+ str.tostring(isSPY?close:close[1]), xloc=xloc.bar_time, textcolor = showRTHcloseLab?RTHcloseColor:colorNone, style=label.style_none)
+    array.push(labelArr,lab1)
+    
+    if array.size(lineArr)>linesToShow
+        line.delete(array.shift(lineArr))
+    if array.size(labelArr)>linesToShow
+        label.delete(array.shift(labelArr))
+
+if inSession1
+    rthNoPlotMs+=barTime
+if not inSession1 and inSession1[1]
+    rthNoPlotMs:=0
+// bgcolor(inSession1?color.new(color.red, 85):na)
+if useNoPlotSession
+    int noPlotEnd = last_bar_time - rthNoPlotMs
+    if extendBoxRight
+        for bx_ in boxArr
+            box.set_right(bx_, noPlotEnd)
+        for bx_ in boxArr2
+            box.set_right(bx_, noPlotEnd)
+        for ln_ in lnRthMidArr
+            line.set_x2(ln_, noPlotEnd)
+        for lb_ in labRthMidArr
+            label.set_x(lb_, noPlotEnd)
+        for ln_ in lnHiLoMidArr
+            line.set_x2(ln_, noPlotEnd)
+        for lb_ in labHiLoMidArr
+            label.set_x(lb_, noPlotEnd)
+    if extendLineRight
+        for ln_ in lineArr
+            line.set_x2(ln_, noPlotEnd)
+        for lb_ in labelArr
+            label.set_x(lb_, noPlotEnd)
+
+//=====================================================================================
+// HTF CANDLES (merged from "ICT HTF Candles (fadi)" by @fadizeidan, MPL 2.0)
+// Backported from Pine v6 to v5. Renamed to avoid clashes with the ICT code:
+//   Helper->HCHelper, Settings->HCSettings, Imbalance->HCImbalance,
+//   settings->hcs, helper->hch, htf_1..6->hc_tf_1..6,
+//   methods FindImbalance->HCFindImbalance, LineStyle->HCLineStyle (overloaded methods can't use globals)
+//=====================================================================================
+
+type Candle
+    float o
+    float c
+    float h
+    float l
+    int o_time
+    int o_idx
+    int c_idx
+    int h_idx
+    int l_idx
+    string dow
+    box body
+    line wick_up
+    line wick_down
+    label dow_label
+
+type Trace
+    line o
+    line c
+    line h
+    line l
+    label o_l
+    label c_l
+    label h_l
+    label l_l
+
+type HCImbalance
+    box b
+    int idx
+
+type CandleSettings
+    bool show
+    string htf
+    int max_display
+
+type HCSettings
+    int max_sets
+    color bull_body
+    color bull_border
+    color bull_wick
+    color bear_body
+    color bear_border
+    color bear_wick
+    int offset
+    int buffer
+    int htf_buffer
+    int width
+    bool use_custom_daily
+    string custom_daily
+    bool daily_name
+    bool trace_show
+    color trace_o_color
+    string trace_o_style
+    int trace_o_size
+    color trace_c_color
+    string trace_c_style
+    int trace_c_size
+    color trace_h_color
+    string trace_h_style
+    int trace_h_size
+    color trace_l_color
+    string trace_l_style
+    int trace_l_size
+    string trace_anchor
+    bool label_show
+    color label_color
+    string label_size
+    string label_position
+    string label_alignment
+    bool fvg_show
+    color fvg_color
+    bool vi_show
+    color vi_color
+    bool htf_label_show
+    color htf_label_color
+    string htf_label_size
+    bool htf_timer_show
+    color htf_timer_color
+    string htf_timer_size
+    color dow_color
+    string dow_size
+
+type CandleSet
+    array<Candle> candles
+    array<HCImbalance> imbalances
+    CandleSettings settings
+    int htfTime
+    label tfNameTop
+    label tfNameBottom
+    label tfTimerTop
+    label tfTimerBottom
+
+type HCHelper
+    string name = 'HCHelper'
+
+HCSettings hcs = HCSettings.new()
+
+var CandleSettings SettingsHTF1 = CandleSettings.new()
+var CandleSettings SettingsHTF2 = CandleSettings.new()
+var CandleSettings SettingsHTF3 = CandleSettings.new()
+var CandleSettings SettingsHTF4 = CandleSettings.new()
+var CandleSettings SettingsHTF5 = CandleSettings.new()
+var CandleSettings SettingsHTF6 = CandleSettings.new()
+
+var array<Candle> candles_1 = array.new<Candle>(0)
+var array<Candle> candles_2 = array.new<Candle>(0)
+var array<Candle> candles_3 = array.new<Candle>(0)
+var array<Candle> candles_4 = array.new<Candle>(0)
+var array<Candle> candles_5 = array.new<Candle>(0)
+var array<Candle> candles_6 = array.new<Candle>(0)
+
+var array<HCImbalance> imbalances_1 = array.new<HCImbalance>()
+var array<HCImbalance> imbalances_2 = array.new<HCImbalance>()
+var array<HCImbalance> imbalances_3 = array.new<HCImbalance>()
+var array<HCImbalance> imbalances_4 = array.new<HCImbalance>()
+var array<HCImbalance> imbalances_5 = array.new<HCImbalance>()
+var array<HCImbalance> imbalances_6 = array.new<HCImbalance>()
+
+var CandleSet htf1 = CandleSet.new()
+htf1.settings := SettingsHTF1
+htf1.candles := candles_1
+htf1.imbalances := imbalances_1
+
+var CandleSet htf2 = CandleSet.new()
+htf2.settings := SettingsHTF2
+htf2.candles := candles_2
+htf2.imbalances := imbalances_2
+
+var CandleSet htf3 = CandleSet.new()
+htf3.settings := SettingsHTF3
+htf3.candles := candles_3
+htf3.imbalances := imbalances_3
+
+var CandleSet htf4 = CandleSet.new()
+htf4.settings := SettingsHTF4
+htf4.candles := candles_4
+htf4.imbalances := imbalances_4
+
+var CandleSet htf5 = CandleSet.new()
+htf5.settings := SettingsHTF5
+htf5.candles := candles_5
+htf5.imbalances := imbalances_5
+
+var CandleSet htf6 = CandleSet.new()
+htf6.settings := SettingsHTF6
+htf6.candles := candles_6
+htf6.imbalances := imbalances_6
+
+var array<CandleSet> hc_sets = array.new<CandleSet>(0)
+if barstate.isfirst
+    hc_sets.push(htf1)
+    hc_sets.push(htf2)
+    hc_sets.push(htf3)
+    hc_sets.push(htf4)
+    hc_sets.push(htf5)
+    hc_sets.push(htf6)
+
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- HCSettings                                                                                             ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+
+string group_style              = "Styling  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string group_label              = "Label HCSettings  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string group_imbalance          = "HCImbalance  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string group_trace              = "Trace  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+htf1.settings.show              := input.bool(true, 'HTF 1      ', inline = 'htf1', group = 'HTF Candles')
+hc_tf_1                           = input.timeframe('5', '', inline = 'htf1', group = 'HTF Candles')
+htf1.settings.htf := hc_tf_1
+htf1.settings.max_display       := input.int(10, '', inline = 'htf1', group = 'HTF Candles')
+
+htf2.settings.show              := input.bool(true, 'HTF 2      ', inline = 'htf2', group = 'HTF Candles')
+hc_tf_2                           = input.timeframe('15', '', inline = 'htf2', group = 'HTF Candles')
+htf2.settings.htf := hc_tf_2
+htf2.settings.max_display       := input.int(10, '', inline = 'htf2', group = 'HTF Candles')
+
+htf3.settings.show              := input.bool(true, 'HTF 3      ', inline = 'htf3', group = 'HTF Candles')
+hc_tf_3                           = input.timeframe('60', '', inline = 'htf3', group = 'HTF Candles')
+htf3.settings.htf := hc_tf_3
+htf3.settings.max_display       := input.int(10, '', inline = 'htf3', group = 'HTF Candles')
+
+htf4.settings.show              := input.bool(true, 'HTF 4      ', inline = 'htf4', group = 'HTF Candles')
+hc_tf_4                           = input.timeframe('240', '', inline = 'htf4', group = 'HTF Candles')
+htf4.settings.htf               := hc_tf_4
+htf4.settings.max_display       := input.int(10, '', inline = 'htf4', group = 'HTF Candles')
+
+htf5.settings.show              := input.bool(true, 'HTF 5      ', inline = 'htf5', group = 'HTF Candles')
+hc_tf_5                           = input.timeframe('1D', '', inline = 'htf5', group = 'HTF Candles')
+htf5.settings.htf := hc_tf_5
+htf5.settings.max_display       := input.int(10, '', inline = 'htf5', group = 'HTF Candles')
+
+htf6.settings.show              := input.bool(true, 'HTF 6      ', inline = 'htf6', group = 'HTF Candles')
+hc_tf_6                           = input.timeframe('1W', '', inline = 'htf6', group = 'HTF Candles')
+htf6.settings.htf               := hc_tf_6
+htf6.settings.max_display       := input.int(10, '', inline = 'htf6', group = 'HTF Candles')
+
+hcs.max_sets               := input.int(6, 'Limit to next HTFs only', minval = 1, maxval = 6, group = 'HTF Candles')
+hcs.use_custom_daily       := input.bool(false, 'Custom daily candle open     ', inline='customdaily', group='HTF Candles')
+hcs.custom_daily           := input.string('Midnight', '', options=['Midnight', '8:30', '9:30'], inline='customdaily', group='HTF Candles')
+hcs.bull_body              := input.color(color.new(color.green, 10), 'Body  ', inline = 'body', group=group_style)
+hcs.bear_body              := input.color(color.new(color.red, 10), '', inline = 'body', group=group_style)
+hcs.bull_border            := input.color(color.new(color.black, 10), 'Borders', inline = 'borders', group=group_style)
+hcs.bear_border            := input.color(color.new(color.black, 10), '', inline = 'borders', group=group_style)
+hcs.bull_wick              := input.color(color.new(color.black, 10), 'Wick  ', inline = 'wick', group=group_style)
+hcs.bear_wick              := input.color(color.new(color.black, 10), '', inline = 'wick', group=group_style)
+
+hcs.offset                 := input.int(10, 'padding from current candles', minval = 1, group=group_style)
+hcs.buffer                 := input.int(1, 'space between candles', minval = 1, maxval = 4, group=group_style)
+hcs.htf_buffer             := input.int(10, 'space between Higher Timeframes', minval = 1, maxval = 10, group=group_style)
+hcs.width                  := input.int(1, 'Candle Width', minval = 1, maxval = 4, group=group_style) * 2
+
+hcs.htf_label_show         := input.bool(true, 'HTF Label           ', group=group_label, inline = 'HTFlabel')
+hcs.htf_label_color        := input.color(color.new(color.black, 10), '', group=group_label, inline = 'HTFlabel')
+hcs.htf_label_size         := input.string(size.large, '', [size.tiny, size.small, size.normal, size.large, size.huge], group=group_label, inline = 'HTFlabel')
+
+hcs.label_position         := input.string("Both", 'Label Positions', options=['Both', 'Top', 'Bottom'], group=group_label)
+hcs.label_alignment        := input.string("Align", "Label Alignment", options=['Align', 'Follow Candles'], group=group_label)
+
+hcs.htf_timer_show         := input.bool(true, 'Remaining time      ', inline = 'timer', group=group_label)
+hcs.htf_timer_color        := input.color(color.new(color.black, 10), '', inline = 'timer', group=group_label)
+hcs.htf_timer_size         := input.string(size.normal, '', [size.tiny, size.small, size.normal, size.large, size.huge], group=group_label, inline = 'timer')
+
+hcs.daily_name             := input.bool(false, 'Interval Value        ', group=group_label, inline = 'dow')
+hcs.dow_color              := input.color(color.black , '', group=group_label, inline = 'dow')
+hcs.dow_size               := input.string(size.small, '', [size.tiny, size.small, size.normal, size.large, size.huge], group=group_label, inline = 'dow')
+
+hcs.fvg_show               := input.bool(true, 'Fair Value Gap   ', group = group_imbalance, inline = 'fvg')
+hcs.fvg_color              := input.color(color.new(color.gray, 80), '', inline = 'fvg', group = group_imbalance)
+
+hcs.vi_show                := input.bool(true, 'Volume HCImbalance', group = group_imbalance, inline = 'vi')
+hcs.vi_color               := input.color(color.new(color.red, 50), '', inline = 'vi', group = group_imbalance)
+
+hcs.trace_show             := input.bool(false, 'Trace lines', group = group_trace)
+hcs.trace_o_color          := input.color(color.new(color.gray, 50), 'Open    ', inline = '1', group = group_trace)
+hcs.trace_o_style          := input.string('····', '', options = ['⎯⎯⎯', '----', '····'], inline = '1', group = group_trace)
+hcs.trace_o_size           := input.int(1, '', options = [1, 2, 3, 4], inline = '1', group = group_trace)
+hcs.trace_c_color          := input.color(color.new(color.gray, 50), 'Close    ', inline = '2', group = group_trace)
+hcs.trace_c_style          := input.string('····', '', options = ['⎯⎯⎯', '----', '····'], inline = '2', group = group_trace)
+hcs.trace_c_size           := input.int(1, '', options = [1, 2, 3, 4], inline = '2', group = group_trace)
+hcs.trace_h_color          := input.color(color.new(color.gray, 50), 'High     ', inline = '3', group = group_trace)
+hcs.trace_h_style          := input.string('····', '', options = ['⎯⎯⎯', '----', '····'], inline = '3', group = group_trace)
+hcs.trace_h_size           := input.int(1, '', options = [1, 2, 3, 4], inline = '3', group = group_trace)
+hcs.trace_l_color          := input.color(color.new(color.gray, 50), 'Low     ', inline = '4', group = group_trace)
+hcs.trace_l_style          := input.string('····', '', options = ['⎯⎯⎯', '----', '····'], inline = '4', group = group_trace)
+hcs.trace_l_size           := input.int(1, '', options = [1, 2, 3, 4], inline = '4', group = group_trace)
+hcs.trace_anchor           := input.string('First Timeframe', 'Anchor to', options = ['First Timeframe', 'Last Timeframe'], group = group_trace)
+
+hcs.label_show             := input.bool(false, 'Price Label           ', inline = 'label', group = group_trace)
+hcs.label_color            := input.color(color.new(color.black, 10), '', inline = 'label', group = group_trace)
+hcs.label_size             := input.string(size.small, '', [size.tiny, size.small, size.normal, size.large, size.huge], inline = 'label', group = group_trace)
+
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- Variables                                                                                            ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+
+HCHelper hch = HCHelper.new()
+var Trace trace = Trace.new()
+
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- Internal Functions                                                                                   ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+
+method HCLineStyle(HCHelper hch, string style) =>
+    hch.name := style
+    style == '----' ? line.style_dashed : style == '····' ? line.style_dotted : line.style_solid
+
+method DayofWeek(HCHelper hch, int index) =>
+    hch.name := 'DOW'
+    int dIdx = nz(index, 1)
+    dIdx >= 1 and dIdx <= 7 ? str.substring('MTWTFSS', dIdx - 1, dIdx) : ''
+
+method ValidTimeframe(HCHelper hch, string HTF) =>
+    hch.name := HTF
+    if timeframe.in_seconds(HTF) >= timeframe.in_seconds('D') and timeframe.in_seconds(HTF) > timeframe.in_seconds()
+        true
+    else
+        n1 = timeframe.in_seconds()
+        n2 = timeframe.in_seconds(HTF)
+        n3 = n1 % n2
+        n1 < n2 and math.round(n2 / n1) == n2 / n1
+
+
+method RemainingTime(HCHelper hch, string HTF) =>
+    hch.name := HTF
+    if barstate.isrealtime
+        timeRemaining = (time_close(HTF) - timenow) / 1000
+        days = math.floor(timeRemaining / 86400)
+        hours = math.floor((timeRemaining - days * 86400) / 3600)
+        minutes = math.floor((timeRemaining - days * 86400 - hours * 3600) / 60)
+        seconds = math.floor(timeRemaining - days * 86400 - hours * 3600 - minutes * 60)
+
+        r = str.tostring(seconds, '00')
+        if minutes > 0 or hours > 0 or days > 0
+            r := str.tostring(minutes, '00') + ':' + r
+            r
+        if hours > 0 or days > 0
+            r := str.tostring(hours, '00') + ':' + r
+            r
+        if days > 0
+            r := str.tostring(days) + 'D ' + r
+            r
+        r
+    else
+        'n/a'
+
+method HTFName(HCHelper hch, string HTF) =>
+    hch.name := 'HTFName'
+    formatted = HTF
+
+    seconds = timeframe.in_seconds(HTF)
+    if seconds < 60
+        formatted := str.tostring(seconds) + 's'
+        formatted
+    else if seconds / 60 < 60
+        formatted := str.tostring(seconds / 60) + 'm'
+        formatted
+    else if seconds / 60 / 60 < 24
+        formatted := str.tostring(seconds / 60 / 60) + 'H'
+        formatted
+    formatted
+
+method HTFEnabled(HCHelper hch) =>
+    hch.name := 'HTFEnabled'
+    int enabled = 0
+    enabled := enabled + (htf1.settings.show ? 1 : 0)
+    enabled := enabled + (htf2.settings.show ? 1 : 0)
+    enabled := enabled + (htf3.settings.show ? 1 : 0)
+    enabled := enabled + (htf4.settings.show ? 1 : 0)
+    enabled := enabled + (htf5.settings.show ? 1 : 0)
+    enabled := enabled + (htf6.settings.show ? 1 : 0)
+    int last = math.min(enabled, hcs.max_sets)
+
+    last
+
+method CandleSetHigh(HCHelper hch, array<Candle> candles, float h) =>
+    hch.name := 'CandlesSetHigh'
+    float _h = h
+    for c in candles
+        _h := math.max(_h, c.h)
+    _h
+
+method CandleSetLow(HCHelper hch, array<Candle> candles, float l) =>
+    hch.name := 'CandlesSetLow'
+    float _l = l
+    for c in candles
+        _l := math.min(_l, c.l)
+    _l
+
+method CandlesHigh(HCHelper hch, array<Candle> candles) =>
+    hch.name := 'CandlesHigh'
+    float h = 0.0
+    int cnt = 0
+    int last = hch.HTFEnabled()
+    for st in hc_sets
+        if st.settings.show and hch.ValidTimeframe(st.settings.htf) and cnt < last
+            h := hch.CandleSetHigh(st.candles, h)
+            cnt += 1
+    h := hch.CandleSetHigh(candles, h)
+    h
+
+method CandlesLow(HCHelper hch, array<Candle> candles, float h) =>
+    hch.name := 'CandlesLow'
+    float l = h
+    int cnt = 0
+    int last = hch.HTFEnabled()
+    for st in hc_sets
+        if st.settings.show and hch.ValidTimeframe(st.settings.htf) and cnt < last
+            l := hch.CandleSetLow(st.candles, l)
+            cnt += 1
+    l := hch.CandleSetLow(candles, l)
+    l
+
+method UpdateTime(CandleSet candleSet, int offset) =>
+    if hcs.htf_timer_show and (barstate.isrealtime or barstate.islast)
+        string tmr = '(' + hch.RemainingTime(candleSet.settings.htf) + ')'
+
+        if not na(candleSet.tfTimerTop)
+            candleSet.tfTimerTop.set_text(tmr)
+
+        if not na(candleSet.tfTimerBottom)
+            candleSet.tfTimerBottom.set_text(tmr)
+    candleSet
+
+hcLabel(label lb, x, y, txt, tc, st, sz) =>
+    label r = lb
+    if na(r)
+        r := label.new(x, y, txt, color = color_transparent, textcolor = tc, style = st, size = sz)
+    else
+        r.set_xy(x, y)
+    r
+
+method Reorder(CandleSet candleSet, int offset) =>
+    size = candleSet.candles.size()
+
+    if size > 0
+        for i = size - 1 to 0
+            Candle candle = candleSet.candles.get(i)
+            t_buffer = offset + (hcs.width + hcs.buffer) * (size - i - 1)
+            box.set_left(candle.body, bar_index + t_buffer)
+            box.set_right(candle.body, bar_index + hcs.width + t_buffer)
+            line.set_x1(candle.wick_up, bar_index + hcs.width / 2 + t_buffer)
+            line.set_x2(candle.wick_up, bar_index + hcs.width / 2 + t_buffer)
+            line.set_x1(candle.wick_down, bar_index + hcs.width / 2 + t_buffer)
+            line.set_x2(candle.wick_down, bar_index + hcs.width / 2 + t_buffer)
+
+            if hcs.daily_name //and candleSet.settings.htf == '1D'
+                if not na(candle.dow_label)
+                    candle.dow_label.set_y(candle.h)
+                    candle.dow_label.set_x(bar_index + hcs.width / 2 + t_buffer)
+                    candle.dow_label.set_text(candle.dow)
+                else
+                    candle.dow_label := label.new(bar_index + hcs.width / 2 + t_buffer, candle.h, candle.dow, color = color_transparent, textcolor = hcs.dow_color, style = label.style_label_down, size = hcs.dow_size)
+
+    top = 0.0
+    bottom = 0.0
+
+    if hcs.label_alignment == 'Align'
+        top := hch.CandlesHigh(candleSet.candles)
+        bottom := hch.CandlesLow(candleSet.candles, top)
+    if hcs.label_alignment == 'Follow Candles'
+        top := hch.CandleSetHigh(candleSet.candles, 0)
+        bottom := hch.CandleSetLow(candleSet.candles, top)
+
+    left = bar_index + offset + (hcs.width + hcs.buffer) * (size - 1) / 2
+
+    if hcs.htf_label_show
+        string lblt = hch.HTFName(candleSet.settings.htf)
+        string lbll = lblt
+        if hcs.htf_timer_show
+            lblt := lblt + '\n'
+            lbll := '\n' + lbll
+        if hcs.daily_name
+            lblt := lblt + '\n'
+
+        string tmr = '(' + hch.RemainingTime(candleSet.settings.htf) + ')' + (hcs.daily_name ? '\n' : '')
+        if hcs.label_position == 'Both' or hcs.label_position == 'Top'
+            candleSet.tfNameTop := hcLabel(candleSet.tfNameTop, left, top, lblt, hcs.htf_label_color, label.style_label_down, hcs.htf_label_size)
+            if hcs.htf_timer_show
+                candleSet.tfTimerTop := hcLabel(candleSet.tfTimerTop, left, top, tmr, hcs.htf_timer_color, label.style_label_down, hcs.htf_timer_size)
+
+        if hcs.label_position == 'Both' or hcs.label_position == 'Bottom'
+            candleSet.tfNameBottom := hcLabel(candleSet.tfNameBottom, left, bottom, lbll, hcs.htf_label_color, label.style_label_up, hcs.htf_label_size)
+            if hcs.htf_timer_show
+                candleSet.tfTimerBottom := hcLabel(candleSet.tfTimerBottom, left, bottom, tmr, hcs.htf_timer_color, label.style_label_up, hcs.htf_timer_size)
+
+    candleSet
+
+method HCFindImbalance(CandleSet candleSet) =>
+    if barstate.isrealtime or barstate.islast
+        if candleSet.imbalances.size() > 0
+            for i = candleSet.imbalances.size() - 1 to 0
+                HCImbalance del = candleSet.imbalances.get(i)
+                box.delete(del.b)
+                candleSet.imbalances.pop()
+
+        if candleSet.candles.size() > 3 and hcs.fvg_show
+            for i = 0 to candleSet.candles.size() - 3 by 1
+                candle1 = candleSet.candles.get(i)
+                candle2 = candleSet.candles.get(i + 2)
+                candle3 = candleSet.candles.get(i + 1)
+
+                if candle1.l > candle2.h and math.min(candle1.o, candle1.c) > math.max(candle2.o, candle2.c)
+                    HCImbalance imb = HCImbalance.new()
+                    imb.b := box.new(box.get_left(candle2.body), candle2.h, box.get_right(candle1.body), candle1.l, bgcolor = hcs.fvg_color, border_color = color_transparent, xloc = xloc.bar_index)
+                    candleSet.imbalances.push(imb)
+                if candle1.h < candle2.l and math.max(candle1.o, candle1.c) < math.min(candle2.o, candle2.c)
+                    HCImbalance imb = HCImbalance.new()
+                    imb.b := box.new(box.get_right(candle1.body), candle1.h, box.get_left(candle2.body), candle2.l, bgcolor = hcs.fvg_color, border_color = color_transparent)
+                    candleSet.imbalances.push(imb)
+                box temp = box.copy(candle3.body)
+                box.delete(candle3.body)
+                candle3.body := temp
+                candle3.body
+
+        if candleSet.candles.size() > 2 and hcs.vi_show
+            for i = 0 to candleSet.candles.size() - 2 by 1
+                candle1 = candleSet.candles.get(i)
+                candle2 = candleSet.candles.get(i + 1)
+                if candle1.l < candle2.h and math.min(candle1.o, candle1.c) > math.max(candle2.o, candle2.c)
+                    HCImbalance imb = HCImbalance.new()
+                    imb.b := box.new(box.get_left(candle2.body), math.min(candle1.o, candle1.c), box.get_right(candle1.body), math.max(candle2.o, candle2.c), bgcolor = hcs.vi_color, border_color = color_transparent)
+                    candleSet.imbalances.push(imb)
+                if candle1.h > candle2.l and math.max(candle1.o, candle1.c) < math.min(candle2.o, candle2.c)
+                    HCImbalance imb = HCImbalance.new()
+                    imb.b := box.new(box.get_right(candle1.body), math.min(candle2.o, candle2.c), box.get_left(candle2.body), math.max(candle1.o, candle1.c), bgcolor = hcs.vi_color, border_color = color_transparent)
+                    candleSet.imbalances.push(imb)
+    candleSet
+
+hc_in830 = not na(time(timeframe.period, "0830-0831:123456", 'America/New_York'))
+hc_in930 = not na(time(timeframe.period, "0930-0931:123456", 'America/New_York'))
+hc_new830 = hc_in830 and not hc_in830[1]
+hc_new930 = hc_in930 and not hc_in930[1]
+hc_newMidnight = dayofweek(time, 'America/New_York') != dayofweek(time[1], 'America/New_York')
+
+method Monitor(CandleSet candleSet) =>
+    int HTFBarTime = time(candleSet.settings.htf, 'America/New_York')
+    bool isNewHTFCandle = not na(candleSet.htfTime) and HTFBarTime > candleSet.htfTime
+    candleSet.htfTime := na(HTFBarTime) ? candleSet.htfTime : HTFBarTime
+
+    if hcs.use_custom_daily and candleSet.settings.htf == '1D'
+        isNewHTFCandle := hcs.custom_daily == 'Midnight' ? hc_newMidnight : hcs.custom_daily == '8:30' ? hc_new830 : hc_new930
+    if isNewHTFCandle
+        Candle candle = Candle.new()
+        candle.o := open
+        candle.c := close
+        candle.h := high
+        candle.l := low
+        candle.o_time := time
+        candle.o_idx := bar_index
+        candle.c_idx := bar_index
+        candle.h_idx := bar_index
+        candle.l_idx := bar_index
+        float htfNum = str.tonumber(candleSet.settings.htf)
+        candle.dow := candleSet.settings.htf == '1D' ? hch.DayofWeek(dayofweek(time_tradingday, "America/New_York")) : htfNum < 60 ? str.format_time(candle.o_time, 'm', 'America/New_York') : htfNum >= 60 ? str.format_time(candle.o_time, 'H', 'America/New_York') : candleSet.settings.htf == '1M' ? str.format_time(candle.o_time, 'M', 'America/New_York') : ''
+        bull = candle.c > candle.o
+
+        candle.body := box.new(bar_index, math.max(candle.o, candle.c), bar_index + 2, math.min(candle.o, candle.c), bull ? hcs.bull_border : hcs.bear_border, 1, bgcolor = bull ? hcs.bull_body : hcs.bear_body)
+        candle.wick_up := line.new(bar_index + 1, candle.h, bar_index, math.max(candle.o, candle.c), color = bull ? hcs.bull_wick : hcs.bear_wick)
+        candle.wick_down := line.new(bar_index + 1, math.min(candle.o, candle.c), bar_index, candle.l, color = bull ? hcs.bull_wick : hcs.bear_wick)
+
+        candleSet.candles.unshift(candle)
+
+        if candleSet.candles.size() > candleSet.settings.max_display
+            Candle delCandle = array.pop(candleSet.candles)
+            box.delete(delCandle.body)
+            line.delete(delCandle.wick_up)
+            line.delete(delCandle.wick_down)
+            delCandle.dow_label.delete()
+
+    candleSet
+
+hcTraceLine(line ln, label lb, int x1, float y, int x2, color col, string sty, int wd, int lblX) =>
+    line l = ln
+    label lab = lb
+    if na(l)
+        l := line.new(x1, y, x2, y, xloc = xloc.bar_index, color = col, style = hch.HCLineStyle(sty), width = wd)
+    else
+        line.set_xy1(l, x1, y)
+        line.set_xy2(l, x2, y)
+    if hcs.label_show
+        if na(lab)
+            lab := label.new(lblX, y, str.tostring(y), textalign = text.align_center, style = label.style_label_left, size = hcs.label_size, color = color_transparent, textcolor = hcs.label_color)
+        else
+            label.set_xy(lab, lblX, y)
+            label.set_text(lab, str.tostring(y))
+    [l, lab]
+
+method Update(CandleSet candleSet, int offset, bool showTrace) =>
+    if candleSet.candles.size() > 0
+        Candle candle = candleSet.candles.first()
+        candle.h_idx := high > candle.h ? bar_index : candle.h_idx
+        candle.h := high > candle.h ? high : candle.h
+        candle.l_idx := low < candle.l ? bar_index : candle.l_idx
+        candle.l := low < candle.l ? low : candle.l
+        candle.c := close
+        candle.c_idx := bar_index
+
+        bull = candle.c > candle.o
+
+        box.set_top(candle.body, candle.o)
+        box.set_bottom(candle.body, candle.c)
+        box.set_bgcolor(candle.body, bull ? hcs.bull_body : hcs.bear_body)
+        box.set_border_color(candle.body, bull ? hcs.bull_border : hcs.bear_border)
+        line.set_color(candle.wick_up, bull ? hcs.bull_wick : hcs.bear_wick)
+        line.set_color(candle.wick_down, bull ? hcs.bull_wick : hcs.bear_wick)
+        line.set_y1(candle.wick_up, candle.h)
+        line.set_y2(candle.wick_up, math.max(candle.o, candle.c))
+        line.set_y1(candle.wick_down, candle.l)
+        line.set_y2(candle.wick_down, math.min(candle.o, candle.c))
+
+        if barstate.isrealtime or barstate.islast
+            candleSet.Reorder(offset)
+            if hcs.trace_show and showTrace
+                int lblX = box.get_right(candle.body)
+                int bodyL = box.get_left(candle.body)
+                if bar_index - candle.o_idx < 5000
+                    [lnO, lbO] = hcTraceLine(trace.o, trace.o_l, candle.o_idx, candle.o, bodyL, hcs.trace_o_color, hcs.trace_o_style, hcs.trace_o_size, lblX)
+                    trace.o := lnO
+                    trace.o_l := lbO
+                if bar_index - candle.c_idx < 5000
+                    [lnC, lbC] = hcTraceLine(trace.c, trace.c_l, candle.c_idx, candle.c, bodyL, hcs.trace_c_color, hcs.trace_c_style, hcs.trace_c_size, lblX)
+                    trace.c := lnC
+                    trace.c_l := lbC
+                if bar_index - candle.h_idx < 5000
+                    [lnH, lbH] = hcTraceLine(trace.h, trace.h_l, candle.h_idx, candle.h, line.get_x1(candle.wick_up), hcs.trace_h_color, hcs.trace_h_style, hcs.trace_h_size, lblX)
+                    trace.h := lnH
+                    trace.h_l := lbH
+                if bar_index - candle.l_idx < 5000
+                    [lnL, lbL] = hcTraceLine(trace.l, trace.l_l, candle.l_idx, candle.l, line.get_x1(candle.wick_down), hcs.trace_l_color, hcs.trace_l_style, hcs.trace_l_size, lblX)
+                    trace.l := lnL
+                    trace.l_l := lbL
+    candleSet
+
+int cnt = 0
+int last = hch.HTFEnabled()
+
+int offset = hcs.offset
+for i = 0 to hc_sets.size() - 1
+    CandleSet cs = hc_sets.get(i)
+    if cs.settings.show and hch.ValidTimeframe(cs.settings.htf) and cnt < last
+        bool showTrace = (hcs.trace_anchor == 'First Timeframe' and cnt == 0) or (hcs.trace_anchor == 'Last Timeframe' and cnt == last - 1)
+        cs.UpdateTime(offset)
+        cs.Monitor().Update(offset, showTrace).HCFindImbalance()
+        cnt += 1
+        offset += cs.candles.size() * hcs.width + (cs.candles.size() > 0 ? (cs.candles.size() - 1) * hcs.buffer : 0) + hcs.htf_buffer
