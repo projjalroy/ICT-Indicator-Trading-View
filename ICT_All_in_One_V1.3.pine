@@ -2,6 +2,11 @@
 // © @projjalroy
 
 //@version=5
+// PERFORMANCE BUILD: same features as V1.3, reworked to stay inside the TradingView free-plan time limit
+//  - request.security calls merged into tuples (46 -> ~17)
+//  - HTF candles / HTF FVG zones are drawn only on the last bar instead of on every historical bar
+//  - V1.5: HTF candles auto-align to the chart timeframe (see 'Auto HTF alignment' above the HTF inputs)
+//  - macro text strings cached, swing labels + small FVG boxes limited to a recent window
 // All the ICT macro time_frame has been added to this version of the indicator for the convenience of the user who have done the precise course from us.
 indicator("All-in-One-ICT-v1.2 + RTH Gap + HTF Candles", max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=5000, overlay=true)
 
@@ -17,6 +22,7 @@ lb_size             = input.string('Normal', "Label Size", options = ['Auto', 'T
 lb_color            = input.color(color.black, "Label Text Color", group = g_SETTINGS)
 use_cutoff          = input.bool(true, "Drawing Cutoff Time", inline = "CO", tooltip = "When enabled, all highs and lows will stop extending after this time", group = g_SETTINGS)
 cutoff              = input.session("1200-1201", "", inline = "CO", group = g_SETTINGS)
+draw_lookback       = input.int(1000, "Drawing Lookback (bars)", 100, 5000, tooltip = "Performance setting. Swing-point labels and the small FVG boxes are only drawn for this many recent bars. Lower = faster. If you ever see the 'script takes too long' error again, lower this value.", group = g_SETTINGS)
 
 
 var g_KZ            = "Killzones"
@@ -228,10 +234,18 @@ var nl_box = array.new_box()
 var np_box = array.new_box()
 
 transparent = #ffffff00
+in_window = bar_index > last_bar_index - draw_lookback
 
-d_o = request.security(syminfo.tickerid, "D", open, barmerge.gaps_off, barmerge.lookahead_on)
-w_o = request.security(syminfo.tickerid, "W", open, barmerge.gaps_off, barmerge.lookahead_on)
-m_o = request.security(syminfo.tickerid, "M", open, barmerge.gaps_off, barmerge.lookahead_on)
+// One request per timeframe (tuple) instead of many single requests
+[daily_time, daily_open, dailyh_time, dailyh_open, dailyl_open, cdailyh_open, cdailyl_open] = request.security(syminfo.tickerid, 'D', [time, open, time[1], high[1], low[1], high, low], lookahead=barmerge.lookahead_on)
+dailyl_time = dailyh_time
+[weekly_time, weekly_open, weeklyh_time, weeklyh_open, weeklyl_open] = request.security(syminfo.tickerid, 'W', [time, open, time[1], high[1], low[1]], lookahead=barmerge.lookahead_on)
+weeklyl_time = weeklyh_time
+[monthly_time, monthly_open, monthlyh_time, monthlyh_open, monthlyl_open] = request.security(syminfo.tickerid, 'M', [time, open, time[1], high[1], low[1]], lookahead=barmerge.lookahead_on)
+monthlyl_time = monthlyh_time
+d_o = daily_open
+w_o = weekly_open
+m_o = monthly_open
 // ---------------------------------------- Variables & Constants --------------------------------------------------
 
 
@@ -664,6 +678,7 @@ if not ms_unlimited
 TimeZoneMode = input.string('UTC', 'Time Zone Mode', options = ['UTC', 'Session Local Time', 'Your Time Zone'],group = 'Basic Setting')
 YourTZ = input.string('UTC-4:00', 'Your Time Zone',group = 'Basic Setting')
 Show_Time = input.bool(false,  'Show Range Time')
+Show_Macro_Labels = input.bool(false, 'Show Macro Labels (LDN 1, NY AM 1...)', group = 'Basic Setting')
 
 //London Macro 1
 show_London_Macro_1 = input(true, 'London Macro 1', inline = 'London Macro 1',group = 'London Macro 1')
@@ -923,25 +938,27 @@ SplitFunction(x, TZ ,YourTZ) =>
     End   = TimeZoneMode == 'Your Time Zone'  ? YourEnd : (EHour + ':' + EMin)
     [Start, End]
 
-[London_Macro_1_Start, London_Macro_1_End]         = SplitFunction(London_Macro_1, London_Macro_1_TZ, YourTZ)
-[London_Macro_2_Start, London_Macro_2_End]         = SplitFunction(London_Macro_2, London_Macro_2_TZ, YourTZ)
-[New_York_AM_1_Start, New_York_AM_1_End]           = SplitFunction(New_York_AM_1, New_York_AM_1_TZ, YourTZ)
-[New_York_AM_2_Start, New_York_AM_2_End]           = SplitFunction(New_York_AM_2, New_York_AM_2_TZ, YourTZ)
-[New_York_AM_3_Start, New_York_AM_3_End]           = SplitFunction(New_York_AM_3, New_York_AM_3_TZ, YourTZ)
-[New_York_Lunch_Start, New_York_Lunch_End]         = SplitFunction(New_York_Lunch, New_York_Lunch_TZ, YourTZ)
-[New_York_PM_Start, New_York_PM_End]               = SplitFunction(New_York_PM, New_York_PM_TZ, YourTZ)
-[New_York_Last_Hour_Start, New_York_Last_Hour_End] = SplitFunction(New_York_Last_Hour, New_York_Last_Hour_TZ, YourTZ)
-
-//Text 
+//Text (cached: only rebuilt on the first bar or when a session string changes with DST)
 TZ = TimeZoneMode == 'Session Local Time' ? 'New York' : TimeZoneMode == 'Your Time Zone' ? YourTZ : 'UTC'
-London_Macro_1_text     = 'LDN 1'           + (Show_Time ? ('\n' + London_Macro_1_Start     + ' ' + 'to' + ' ' + London_Macro_1_End     + ' ' + '(' + TZ + ')') : '')
-London_Macro_2_text     = 'LDN 2'           + (Show_Time ? ('\n' + London_Macro_2_Start     + ' ' + 'to' + ' ' + London_Macro_2_End     + ' ' + '(' + TZ + ')') : '')
-New_York_AM_1_text      = 'NY AM 1'         + (Show_Time ? ('\n' + New_York_AM_1_Start      + ' ' + 'to' + ' ' + New_York_AM_1_End      + ' ' + '(' + TZ + ')') : '')
-New_York_AM_2_text      = 'NY AM 2'         + (Show_Time ? ('\n' + New_York_AM_2_Start      + ' ' + 'to' + ' ' + New_York_AM_2_End      + ' ' + '(' + TZ + ')') : '')
-New_York_AM_3_text      = 'NY AM 3'         + (Show_Time ? ('\n' + New_York_AM_3_Start      + ' ' + 'to' + ' ' + New_York_AM_3_End      + ' ' + '(' + TZ + ')') : '')
-New_York_Lunch_text     = 'NY Lunch'        + (Show_Time ? ('\n' + New_York_Lunch_Start     + ' ' + 'to' + ' ' + New_York_Lunch_End     + ' ' + '(' + TZ + ')') : '')
-New_York_PM_text        = 'NY PM'           + (Show_Time ? ('\n' + New_York_PM_Start        + ' ' + 'to' + ' ' + New_York_PM_End        + ' ' + '(' + TZ + ')') : '')
-New_York_Last_Hour_text = 'NY Last Hour'    + (Show_Time ? ('\n' + New_York_Last_Hour_Start + ' ' + 'to' + ' ' + New_York_Last_Hour_End + ' ' + '(' + TZ + ')') : '')
+
+MacroText(string baseText, string sessionStr, string tzStr) =>
+    var string result = baseText
+    if barstate.isfirst or sessionStr != sessionStr[1]
+        if Show_Time
+            [sStart, sEnd] = SplitFunction(sessionStr, tzStr, YourTZ)
+            result := baseText + '\n' + sStart + ' to ' + sEnd + ' (' + TZ + ')'
+        else
+            result := baseText
+    Show_Macro_Labels ? result : ''
+
+London_Macro_1_text     = MacroText('LDN 1',        London_Macro_1,     London_Macro_1_TZ)
+London_Macro_2_text     = MacroText('LDN 2',        London_Macro_2,     London_Macro_2_TZ)
+New_York_AM_1_text      = MacroText('NY AM 1',      New_York_AM_1,      New_York_AM_1_TZ)
+New_York_AM_2_text      = MacroText('NY AM 2',      New_York_AM_2,      New_York_AM_2_TZ)
+New_York_AM_3_text      = MacroText('NY AM 3',      New_York_AM_3,      New_York_AM_3_TZ)
+New_York_Lunch_text     = MacroText('NY Lunch',     New_York_Lunch,     New_York_Lunch_TZ)
+New_York_PM_text        = MacroText('NY PM',        New_York_PM,        New_York_PM_TZ)
+New_York_Last_Hour_text = MacroText('NY Last Hour', New_York_Last_Hour, New_York_Last_Hour_TZ)
 
 
 if show_London_Macro_1
@@ -1081,42 +1098,48 @@ Imbalance_Settings HTF_6_Settings   = Imbalance_Settings.new()
 string tooltip1 = "HTF FVG Settings:\n\tShow/Hide timeframe\n\tTimeframe to display\n\tBullish FVG Color\n\tBearish FVG Color\n\tMaximum number of FVGs to display"
 string tooltip2 = "Mitigated FVG Settings:\n\tShow/Hide mitigated (Applies to all).\n\tBullish FVG Color\n\tBearish FVG Color\n\tWhen to mark it as mitigated (Based on HTF timeframe, not current timeframe)"
 
-HTF_1_Settings.show         := input.bool(false, "", inline="htf1")
+show_fvg_1                   = input.bool(false, "", inline="htf1")
+HTF_1_Settings.show         := show_fvg_1
 htf_1                        = input.timeframe("5", "", inline="htf1")
 HTF_1_Settings.htf          := htf_1
 HTF_1_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf1")
 HTF_1_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf1")
 HTF_1_Settings.max_count    := input.int(20, "", inline="htf1", tooltip = tooltip1)
 
-HTF_2_Settings.show         := input.bool(false, "", inline="htf2")
+show_fvg_2                   = input.bool(false, "", inline="htf2")
+HTF_2_Settings.show         := show_fvg_2
 htf_2                        = input.timeframe("15", "", inline="htf2")
 HTF_2_Settings.htf          := htf_2
 HTF_2_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf2")
 HTF_2_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf2")
 HTF_2_Settings.max_count    := input.int(20, "", inline="htf2", tooltip = tooltip1)
 
-HTF_3_Settings.show         := input.bool(true, "", inline="htf3")
+show_fvg_3                   = input.bool(true, "", inline="htf3")
+HTF_3_Settings.show         := show_fvg_3
 htf_3                        = input.timeframe("60", "", inline="htf3")
 HTF_3_Settings.htf          := htf_3
 HTF_3_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf3")
 HTF_3_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf3")
 HTF_3_Settings.max_count    := input.int(20, "", inline="htf3", tooltip = tooltip1)
 
-HTF_4_Settings.show         := input.bool(true, "", inline="htf4")
+show_fvg_4                   = input.bool(true, "", inline="htf4")
+HTF_4_Settings.show         := show_fvg_4
 htf_4                        = input.timeframe("240", "", inline="htf4")
 HTF_4_Settings.htf          := htf_4
 HTF_4_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf4")
 HTF_4_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf4")
 HTF_4_Settings.max_count    := input.int(10, "", inline="htf4", tooltip = tooltip1)
 
-HTF_5_Settings.show         := input.bool(true, "", inline="htf5")
+show_fvg_5                   = input.bool(true, "", inline="htf5")
+HTF_5_Settings.show         := show_fvg_5
 htf_5                        = input.timeframe("1D", "", inline="htf5")
 HTF_5_Settings.htf          := htf_5
 HTF_5_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf5")
 HTF_5_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf5")
 HTF_5_Settings.max_count    := input.int(10, "", inline="htf5", tooltip = tooltip1)
 
-HTF_6_Settings.show         := input.bool(true, "", inline="htf6")
+show_fvg_6                   = input.bool(true, "", inline="htf6")
+HTF_6_Settings.show         := show_fvg_6
 htf_6                        = input.timeframe("1W", "", inline="htf6")
 HTF_6_Settings.htf          := htf_6
 HTF_6_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf6")
@@ -1282,7 +1305,7 @@ method AddImbalance(ImbalanceStructure IS, float o, float c, int o_time) =>
 
 // CheckMitigated checks if the imbalance has been mitigated based on the settings
 method CheckMitigated(ImbalanceStructure IS, o, h, l, c) =>
-    if IS.imbalance.size() > 0
+    if IS.imbalance.size() > 0 and settings.mitigated_type != "None"
         for i = IS.imbalance.size() - 1 to 0
             imb = IS.imbalance.get(i)
 
@@ -1355,41 +1378,35 @@ method Process(ImbalanceStructure IS, float o, float h, float l, float c, int t,
 daily                                   := request.security(syminfo.tickerid, "1D", ta.atr(14))
 monthly                                 := request.security(syminfo.tickerid, "1M", ta.atr(14))
 
-[o_1, h_1, l_1, c_1, t_1]               = request.security(syminfo.tickerid, htf_1, [open[1], high[1], low[1], close[1], time[1]])
-[o1_1, h1_1, l1_1, c1_1, t1_1]          = request.security(syminfo.tickerid, htf_1, [open[2], high[2], low[2], close[2], time[2]])
-[o2_1, h2_1, l2_1, c2_1, t2_1]          = request.security(syminfo.tickerid, htf_1, [open[3], high[3], low[3], close[3], time[3]])
+[o_1, h_1, l_1, c_1, t_1, o1_1, h1_1, l1_1, c1_1, t1_1, o2_1, h2_1, l2_1, c2_1, t2_1] = request.security(syminfo.tickerid, show_fvg_1 ? htf_1 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
 TF_1 := FVG_1.Process(o_1, h_1, l_1, c_1, t_1, o1_1, h1_1, l1_1, c1_1, t1_1, o2_1, h2_1, l2_1, c2_1, t2_1)
-FVG_1.AdjustMargins(TF_1)
+if barstate.islast
+    FVG_1.AdjustMargins(TF_1)
 
-[o_2, h_2, l_2, c_2, t_2]               = request.security(syminfo.tickerid, htf_2, [open[1], high[1], low[1], close[1], time[1]])
-[o1_2, h1_2, l1_2, c1_2, t1_2]          = request.security(syminfo.tickerid, htf_2, [open[2], high[2], low[2], close[2], time[2]])
-[o2_2, h2_2, l2_2, c2_2, t2_2]          = request.security(syminfo.tickerid, htf_2, [open[3], high[3], low[3], close[3], time[3]])
+[o_2, h_2, l_2, c_2, t_2, o1_2, h1_2, l1_2, c1_2, t1_2, o2_2, h2_2, l2_2, c2_2, t2_2] = request.security(syminfo.tickerid, show_fvg_2 ? htf_2 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
 TF_2 := TF_1 + FVG_2.Process(o_2, h_2, l_2, c_2, t_2, o1_2, h1_2, l1_2, c1_2, t1_2, o2_2, h2_2, l2_2, c2_2, t2_2)
-FVG_2.AdjustMargins(TF_2)
+if barstate.islast
+    FVG_2.AdjustMargins(TF_2)
 
-[o_3, h_3, l_3, c_3, t_3]               = request.security(syminfo.tickerid, htf_3, [open[1], high[1], low[1], close[1], time[1]])
-[o1_3, h1_3, l1_3, c1_3, t1_3]          = request.security(syminfo.tickerid, htf_3, [open[2], high[2], low[2], close[2], time[2]])
-[o2_3, h2_3, l2_3, c2_3, t2_3]          = request.security(syminfo.tickerid, htf_3, [open[3], high[3], low[3], close[3], time[3]])
+[o_3, h_3, l_3, c_3, t_3, o1_3, h1_3, l1_3, c1_3, t1_3, o2_3, h2_3, l2_3, c2_3, t2_3] = request.security(syminfo.tickerid, show_fvg_3 ? htf_3 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
 TF_3 := TF_2 + FVG_3.Process(o_3, h_3, l_3, c_3, t_3, o1_3, h1_3, l1_3, c1_3, t1_3, o2_3, h2_3, l2_3, c2_3, t2_3)
-FVG_3.AdjustMargins(TF_3)
+if barstate.islast
+    FVG_3.AdjustMargins(TF_3)
 
-[o_4, h_4, l_4, c_4, t_4]               = request.security(syminfo.tickerid, htf_4, [open[1], high[1], low[1], close[1], time[1]])
-[o1_4, h1_4, l1_4, c1_4, t1_4]          = request.security(syminfo.tickerid, htf_4, [open[2], high[2], low[2], close[2], time[2]])
-[o2_4, h2_4, l2_4, c2_4, t2_4]          = request.security(syminfo.tickerid, htf_4, [open[3], high[3], low[3], close[3], time[3]])
+[o_4, h_4, l_4, c_4, t_4, o1_4, h1_4, l1_4, c1_4, t1_4, o2_4, h2_4, l2_4, c2_4, t2_4] = request.security(syminfo.tickerid, show_fvg_4 ? htf_4 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
 TF_4 := TF_3 + FVG_4.Process(o_4, h_4, l_4, c_4, t_4, o1_4, h1_4, l1_4, c1_4, t1_4, o2_4, h2_4, l2_4, c2_4, t2_4)
-FVG_4.AdjustMargins(TF_4)
+if barstate.islast
+    FVG_4.AdjustMargins(TF_4)
 
-[o_5, h_5, l_5, c_5, t_5]               = request.security(syminfo.tickerid, htf_5, [open[1], high[1], low[1], close[1], time[1]])
-[o1_5, h1_5, l1_5, c1_5, t1_5]          = request.security(syminfo.tickerid, htf_5, [open[2], high[2], low[2], close[2], time[2]])
-[o2_5, h2_5, l2_5, c2_5, t2_5]          = request.security(syminfo.tickerid, htf_5, [open[3], high[3], low[3], close[3], time[3]])
+[o_5, h_5, l_5, c_5, t_5, o1_5, h1_5, l1_5, c1_5, t1_5, o2_5, h2_5, l2_5, c2_5, t2_5] = request.security(syminfo.tickerid, show_fvg_5 ? htf_5 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
 TF_5 := TF_4 + FVG_5.Process(o_5, h_5, l_5, c_5, t_5, o1_5, h1_5, l1_5, c1_5, t1_5, o2_5, h2_5, l2_5, c2_5, t2_5)
-FVG_5.AdjustMargins(TF_5)
+if barstate.islast
+    FVG_5.AdjustMargins(TF_5)
 
-[o_6, h_6, l_6, c_6, t_6]               = request.security(syminfo.tickerid, htf_6, [open[1], high[1], low[1], close[1], time[1]])
-[o1_6, h1_6, l1_6, c1_6, t1_6]          = request.security(syminfo.tickerid, htf_6, [open[2], high[2], low[2], close[2], time[2]])
-[o2_6, h2_6, l2_6, c2_6, t2_6]          = request.security(syminfo.tickerid, htf_6, [open[3], high[3], low[3], close[3], time[3]])
+[o_6, h_6, l_6, c_6, t_6, o1_6, h1_6, l1_6, c1_6, t1_6, o2_6, h2_6, l2_6, c2_6, t2_6] = request.security(syminfo.tickerid, show_fvg_6 ? htf_6 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
 TF_6 := TF_5 + FVG_6.Process(o_6, h_6, l_6, c_6, t_6, o1_6, h1_6, l1_6, c1_6, t1_6, o2_6, h2_6, l2_6, c2_6, t2_6)
-FVG_6.AdjustMargins(TF_6)
+if barstate.islast
+    FVG_6.AdjustMargins(TF_6)
 
 //-------------------------2nd file ------------------------------------------------
 
@@ -1410,39 +1427,25 @@ GlobalColor = input.color(title='', defval=color.white, inline='GC')
 //var show_tails = input(defval = false, title = "Always Show", type = input.bool)
 
 
-[daily_time, daily_open] = request.security(syminfo.tickerid, 'D', [time, open], lookahead=barmerge.lookahead_on)
-[dailyh_time, dailyh_open] = request.security(syminfo.tickerid, 'D', [time[1], high[1]], lookahead=barmerge.lookahead_on)
-[dailyl_time, dailyl_open] = request.security(syminfo.tickerid, 'D', [time[1], low[1]], lookahead=barmerge.lookahead_on)
-
-cdailyh_open = request.security(syminfo.tickerid, 'D', high, lookahead=barmerge.lookahead_on)
-cdailyl_open = request.security(syminfo.tickerid, 'D', low, lookahead=barmerge.lookahead_on)
 var monday_time = time
 var monday_high = high
 var monday_low = low
 
-[weekly_time, weekly_open] = request.security(syminfo.tickerid, 'W', [time, open], lookahead=barmerge.lookahead_on)
-[weeklyh_time, weeklyh_open] = request.security(syminfo.tickerid, 'W', [time[1], high[1]], lookahead=barmerge.lookahead_on)
-[weeklyl_time, weeklyl_open] = request.security(syminfo.tickerid, 'W', [time[1], low[1]], lookahead=barmerge.lookahead_on)
 
 
-[monthly_time, monthly_open] = request.security(syminfo.tickerid, 'M', [time, open], lookahead=barmerge.lookahead_on)
-[monthlyh_time, monthlyh_open] = request.security(syminfo.tickerid, 'M', [time[1], high[1]], lookahead=barmerge.lookahead_on)
-[monthlyl_time, monthlyl_open] = request.security(syminfo.tickerid, 'M', [time[1], low[1]], lookahead=barmerge.lookahead_on)
 
 
-[quarterly_time, quarterly_open] = request.security(syminfo.tickerid, '3M', [time, open], lookahead=barmerge.lookahead_on)
-[quarterlyh_time, quarterlyh_open] = request.security(syminfo.tickerid, '3M', [time[1], high[1]], lookahead=barmerge.lookahead_on)
-[quarterlyl_time, quarterlyl_open] = request.security(syminfo.tickerid, '3M', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+[quarterly_time, quarterly_open, quarterlyh_time, quarterlyh_open, quarterlyl_open] = request.security(syminfo.tickerid, '3M', [time, open, time[1], high[1], low[1]], lookahead=barmerge.lookahead_on)
+quarterlyl_time = quarterlyh_time
 
 
-[yearly_time, yearly_open] = request.security(syminfo.tickerid, '12M', [time, open], lookahead=barmerge.lookahead_on)
-[yearlyh_time, yearlyh_open] = request.security(syminfo.tickerid, '12M', [time, high], lookahead=barmerge.lookahead_on)
-[yearlyl_time, yearlyl_open] = request.security(syminfo.tickerid, '12M', [time, low], lookahead=barmerge.lookahead_on)
+[yearly_time, yearly_open, yearlyh_open, yearlyl_open] = request.security(syminfo.tickerid, '12M', [time, open, high, low], lookahead=barmerge.lookahead_on)
+yearlyh_time = yearly_time
+yearlyl_time = yearly_time
 
 
-[intra_time, intra_open] = request.security(syminfo.tickerid, '240', [time, open], lookahead=barmerge.lookahead_on)
-[intrah_time, intrah_open] = request.security(syminfo.tickerid, '240', [time[1], high[1]], lookahead=barmerge.lookahead_on)
-[intral_time, intral_open] = request.security(syminfo.tickerid, '240', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+[intra_time, intra_open, intrah_time, intrah_open, intral_open] = request.security(syminfo.tickerid, '240', [time, open, time[1], high[1], low[1]], lookahead=barmerge.lookahead_on)
+intral_time = intrah_time
 
 //------------------------------ Inputs -------------------------------
 
@@ -1865,7 +1868,7 @@ swingHighPrice = ta.pivothigh(high, inputPivotBars, inputPivotBars)
 swingLowPrice = ta.pivotlow(low, inputPivotBars, inputPivotBars)
 
 
-if not na(swingHighPrice)
+if not na(swingHighPrice) and in_window
     lastSwingHighPrice = array_peek(swingHighs)
     isHigherHigh = swingHighPrice > lastSwingHighPrice
     isLowerHigh = swingHighPrice < lastSwingHighPrice
@@ -1884,7 +1887,7 @@ if not na(swingHighPrice)
     array.push(swingHighIsHigher, isHigherHigh)
     array.push(swingHighIsIntermediate, false)  // can be filled in later, if a lower high forms next
 
-if not na(swingLowPrice)
+if not na(swingLowPrice) and in_window
     lastSwingLowPrice = array_peek(swingLows)
     isHigherLow = swingLowPrice > lastSwingLowPrice
     isLowerLow = swingLowPrice < lastSwingLowPrice
@@ -1930,9 +1933,9 @@ fvgisObDown(index) =>
 
 bullishFvg = low[0] > high[2]
 bearishFvg = high[0] < low[2]
-if bullishFvg and show_IMB
+if bullishFvg and show_IMB and in_window
     box.new(left=bar_index - 1, top=low[0], right=bar_index + fvgboxLength, bottom=high[2], bgcolor=color.new(imbalancecolor, fvgTransparency), border_color=color.new(imbalancecolor, fvgTransparency))
-if bearishFvg and show_IMB
+if bearishFvg and show_IMB and in_window
     box.new(left=bar_index - 1, top=low[2], right=bar_index + fvgboxLength, bottom=high[0], bgcolor=color.new(imbalancecolor, fvgTransparency), border_color=color.new(imbalancecolor, fvgTransparency))
 //////////////////// FVG //////////////////
 
@@ -1998,7 +2001,10 @@ gap weekOpeningGap = request.security(syminfo.tickerid, "1W", getGapData(), look
 [dayOpeningGap, currentDayTimeClose] = request.security(syminfo.tickerid, "1D", [getGapData(), time_close], lookahead =  barmerge.lookahead_on)
 [isNewWeek, hourPreviousBarClose, hourCurrentBarOpen] = request.security(syminfo.tickerid, "240", [helpers.isNewbar("W"), close[1], open], lookahead =  barmerge.lookahead_on)
 
-if timeframe.isintraday and helpers.isNewbar("D") and fiveToSixGap
+isNewW = helpers.isNewbar("W")
+isNewD = helpers.isNewbar("D")
+
+if timeframe.isintraday and isNewD and fiveToSixGap
     dayOpeningGap.high := math.max(close[1], open)
     dayOpeningGap.low := math.min(close[1], open)
 
@@ -2006,7 +2012,7 @@ if timeframe.multiplier < 60
     if isNewWeek and fiveToSixGap
         weekOpeningGap.high := math.max(hourPreviousBarClose, hourCurrentBarOpen)
         weekOpeningGap.low := math.min(hourPreviousBarClose, hourCurrentBarOpen)
-else if (timeframe.isdaily or timeframe.isintraday) and helpers.isNewbar("W") and fiveToSixGap
+else if (timeframe.isdaily or timeframe.isintraday) and isNewW and fiveToSixGap
     weekOpeningGap.high := math.max(close[1], open)
     weekOpeningGap.low := math.min(close[1], open)
 
@@ -2025,7 +2031,7 @@ var array<label> ndogLowLabel = array.new<label>(0)
 var line eventHorizonLine = na
 
 if showNWOG and (timeframe.isdaily or timeframe.isintraday) 
-    if helpers.isNewbar("W") // if (hour(time, "America/New_York") == 9 and minute(time, America/New_York) == 30 and nineThirtyGap) or (not nineThirtyGap and helpers.isNewbar("W"))
+    if isNewW // if (hour(time, "America/New_York") == 9 and minute(time, America/New_York) == 30 and nineThirtyGap) or (not nineThirtyGap and helpers.isNewbar("W"))
         string weekLabel = showDateLabel ? str.format_time(weekOpeningGap.start, dateFormat, syminfo.timezone) + " - " + str.format_time(weekOpeningGap.end, dateFormat, syminfo.timezone) + " | " + nwogLabel : nwogLabel
         float nwogCePrice = (weekOpeningGap.high + weekOpeningGap.low) / 2
         
@@ -2070,7 +2076,7 @@ if showNWOG and (timeframe.isdaily or timeframe.isintraday)
             eventHorizonLine := line.new(weekOpeningGap.start, eventHorizonLevel, weekOpeningGap.end, eventHorizonLevel, xloc = xloc.bar_time, style = helpers.getLineStyle(eventHorizonLineStyle), color = eventHorizonLineColor)
             line.delete(eventHorizonLine[1])
 
-    if helpers.isNewbar("D") 
+    if isNewD
         if extendAllNwogs and array.size(nwogArray) > 0
             for i = array.size(nwogArray) - 1 to 0
                 extendTo = extendToCurrentDayCloseTime ? currentDayTimeClose : weekOpeningGap.end
@@ -2102,7 +2108,7 @@ if showNWOG and (timeframe.isdaily or timeframe.isintraday)
                 line.set_x2(eventHorizonLine, currentDayTimeClose)
 
 if showNDOG and timeframe.isintraday
-    if helpers.isNewbar("D")// and dayOpeningGap.high != dayOpeningGap.low
+    if isNewD// and dayOpeningGap.high != dayOpeningGap.low
         if (dayofweek != dayofweek.sunday and showNWOG) or not showNWOG
             string dayLabel = showDateLabel ? str.format_time(dayOpeningGap.start, dateFormat, syminfo.timezone) + " | " + ndogLabel : ndogLabel //showDayLabels ? getDayOfWeekLabel(dayofweek) + " | " + ndogLabel : ndogLabel
             float ndogCePrice = (dayOpeningGap.high + dayOpeningGap.low) / 2
@@ -2483,35 +2489,58 @@ string group_label              = "Label HCSettings  ━━━━━━━━━
 string group_imbalance          = "HCImbalance  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 string group_trace              = "Trace  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-htf1.settings.show              := input.bool(true, 'HTF 1      ', inline = 'htf1', group = 'HTF Candles')
-hc_tf_1                           = input.timeframe('5', '', inline = 'htf1', group = 'HTF Candles')
-htf1.settings.htf := hc_tf_1
-htf1.settings.max_display       := input.int(10, '', inline = 'htf1', group = 'HTF Candles')
+// ---- Auto HTF alignment by chart timeframe -------------------------------------------------
+//   M1  -> 15m > 4H > 1W
+//   M3  -> 30m > 12H
+//   M5  -> 1H  > 1D
+//   M15 -> 4H  > 1W
+//   M30 -> 12H
+//   H1  -> 1D
+//   H4  -> 1W
+// Any other chart timeframe falls back to the manual HTF 1-6 settings below.
+hc_auto = input.bool(true, 'Auto HTF by chart timeframe', group = 'HTF Candles', tooltip = 'M1: 15m > 4H > 1W\nM3: 30m > 12H\nM5: 1H > 1D\nM15: 4H > 1W\nM30: 12H\nH1: 1D\nH4: 1W\n\nOn any other chart timeframe (or when this is off) the manual HTF 1-6 settings below are used.')
+int hc_chart_sec = timeframe.in_seconds()
+int hc_auto_n = hc_chart_sec == 60 ? 3 : (hc_chart_sec == 180 or hc_chart_sec == 300 or hc_chart_sec == 900) ? 2 : (hc_chart_sec == 1800 or hc_chart_sec == 3600 or hc_chart_sec == 14400) ? 1 : 0
+bool hc_auto_on = hc_auto and hc_auto_n > 0
+string hc_auto_tf_1 = hc_chart_sec == 60 ? '15' : hc_chart_sec == 180 ? '30' : hc_chart_sec == 300 ? '60' : hc_chart_sec == 900 ? '240' : hc_chart_sec == 1800 ? '720' : hc_chart_sec == 3600 ? '1D' : '1W'
+string hc_auto_tf_2 = hc_chart_sec == 60 ? '240' : hc_chart_sec == 180 ? '720' : hc_chart_sec == 300 ? '1D' : '1W'
+string hc_auto_tf_3 = '1W'
 
-htf2.settings.show              := input.bool(true, 'HTF 2      ', inline = 'htf2', group = 'HTF Candles')
-hc_tf_2                           = input.timeframe('15', '', inline = 'htf2', group = 'HTF Candles')
-htf2.settings.htf := hc_tf_2
-htf2.settings.max_display       := input.int(10, '', inline = 'htf2', group = 'HTF Candles')
+hc_man_show_1 = input.bool(true, 'HTF 1', inline = 'htf1', group = 'HTF Candles')
+hc_tf_1       = input.timeframe('5', '', inline = 'htf1', group = 'HTF Candles')
+htf1.settings.show        := hc_auto_on ? hc_auto_n >= 1 : hc_man_show_1
+htf1.settings.htf         := hc_auto_on ? hc_auto_tf_1 : hc_tf_1
+htf1.settings.max_display := input.int(10, '', inline = 'htf1', group = 'HTF Candles')
 
-htf3.settings.show              := input.bool(true, 'HTF 3      ', inline = 'htf3', group = 'HTF Candles')
-hc_tf_3                           = input.timeframe('60', '', inline = 'htf3', group = 'HTF Candles')
-htf3.settings.htf := hc_tf_3
-htf3.settings.max_display       := input.int(10, '', inline = 'htf3', group = 'HTF Candles')
+hc_man_show_2 = input.bool(true, 'HTF 2', inline = 'htf2', group = 'HTF Candles')
+hc_tf_2       = input.timeframe('15', '', inline = 'htf2', group = 'HTF Candles')
+htf2.settings.show        := hc_auto_on ? hc_auto_n >= 2 : hc_man_show_2
+htf2.settings.htf         := hc_auto_on ? hc_auto_tf_2 : hc_tf_2
+htf2.settings.max_display := input.int(10, '', inline = 'htf2', group = 'HTF Candles')
 
-htf4.settings.show              := input.bool(true, 'HTF 4      ', inline = 'htf4', group = 'HTF Candles')
-hc_tf_4                           = input.timeframe('240', '', inline = 'htf4', group = 'HTF Candles')
-htf4.settings.htf               := hc_tf_4
-htf4.settings.max_display       := input.int(10, '', inline = 'htf4', group = 'HTF Candles')
+hc_man_show_3 = input.bool(true, 'HTF 3', inline = 'htf3', group = 'HTF Candles')
+hc_tf_3       = input.timeframe('60', '', inline = 'htf3', group = 'HTF Candles')
+htf3.settings.show        := hc_auto_on ? hc_auto_n >= 3 : hc_man_show_3
+htf3.settings.htf         := hc_auto_on ? hc_auto_tf_3 : hc_tf_3
+htf3.settings.max_display := input.int(10, '', inline = 'htf3', group = 'HTF Candles')
 
-htf5.settings.show              := input.bool(true, 'HTF 5      ', inline = 'htf5', group = 'HTF Candles')
-hc_tf_5                           = input.timeframe('1D', '', inline = 'htf5', group = 'HTF Candles')
-htf5.settings.htf := hc_tf_5
-htf5.settings.max_display       := input.int(10, '', inline = 'htf5', group = 'HTF Candles')
+hc_man_show_4 = input.bool(true, 'HTF 4', inline = 'htf4', group = 'HTF Candles')
+hc_tf_4       = input.timeframe('240', '', inline = 'htf4', group = 'HTF Candles')
+htf4.settings.show        := hc_auto_on ? false : hc_man_show_4
+htf4.settings.htf         := hc_tf_4
+htf4.settings.max_display := input.int(10, '', inline = 'htf4', group = 'HTF Candles')
 
-htf6.settings.show              := input.bool(true, 'HTF 6      ', inline = 'htf6', group = 'HTF Candles')
-hc_tf_6                           = input.timeframe('1W', '', inline = 'htf6', group = 'HTF Candles')
-htf6.settings.htf               := hc_tf_6
-htf6.settings.max_display       := input.int(10, '', inline = 'htf6', group = 'HTF Candles')
+hc_man_show_5 = input.bool(true, 'HTF 5', inline = 'htf5', group = 'HTF Candles')
+hc_tf_5       = input.timeframe('1D', '', inline = 'htf5', group = 'HTF Candles')
+htf5.settings.show        := hc_auto_on ? false : hc_man_show_5
+htf5.settings.htf         := hc_tf_5
+htf5.settings.max_display := input.int(10, '', inline = 'htf5', group = 'HTF Candles')
+
+hc_man_show_6 = input.bool(true, 'HTF 6', inline = 'htf6', group = 'HTF Candles')
+hc_tf_6       = input.timeframe('1W', '', inline = 'htf6', group = 'HTF Candles')
+htf6.settings.show        := hc_auto_on ? false : hc_man_show_6
+htf6.settings.htf         := hc_tf_6
+htf6.settings.max_display := input.int(10, '', inline = 'htf6', group = 'HTF Candles')
 
 hcs.max_sets               := input.int(6, 'Limit to next HTFs only', minval = 1, maxval = 6, group = 'HTF Candles')
 hcs.use_custom_daily       := input.bool(false, 'Custom daily candle open     ', inline='customdaily', group='HTF Candles')
@@ -2819,6 +2848,7 @@ method Monitor(CandleSet candleSet) =>
     if hcs.use_custom_daily and candleSet.settings.htf == '1D'
         isNewHTFCandle := hcs.custom_daily == 'Midnight' ? hc_newMidnight : hcs.custom_daily == '8:30' ? hc_new830 : hc_new930
     if isNewHTFCandle
+        // data only: boxes / lines are created on the last bar (see DrawCandles)
         Candle candle = Candle.new()
         candle.o := open
         candle.c := close
@@ -2829,22 +2859,22 @@ method Monitor(CandleSet candleSet) =>
         candle.c_idx := bar_index
         candle.h_idx := bar_index
         candle.l_idx := bar_index
-        float htfNum = str.tonumber(candleSet.settings.htf)
-        candle.dow := candleSet.settings.htf == '1D' ? hch.DayofWeek(dayofweek(time_tradingday, "America/New_York")) : htfNum < 60 ? str.format_time(candle.o_time, 'm', 'America/New_York') : htfNum >= 60 ? str.format_time(candle.o_time, 'H', 'America/New_York') : candleSet.settings.htf == '1M' ? str.format_time(candle.o_time, 'M', 'America/New_York') : ''
-        bull = candle.c > candle.o
-
-        candle.body := box.new(bar_index, math.max(candle.o, candle.c), bar_index + 2, math.min(candle.o, candle.c), bull ? hcs.bull_border : hcs.bear_border, 1, bgcolor = bull ? hcs.bull_body : hcs.bear_body)
-        candle.wick_up := line.new(bar_index + 1, candle.h, bar_index, math.max(candle.o, candle.c), color = bull ? hcs.bull_wick : hcs.bear_wick)
-        candle.wick_down := line.new(bar_index + 1, math.min(candle.o, candle.c), bar_index, candle.l, color = bull ? hcs.bull_wick : hcs.bear_wick)
+        if hcs.daily_name
+            float htfNum = str.tonumber(candleSet.settings.htf)
+            candle.dow := candleSet.settings.htf == '1D' ? hch.DayofWeek(dayofweek(time_tradingday, "America/New_York")) : htfNum < 60 ? str.format_time(candle.o_time, 'm', 'America/New_York') : htfNum >= 60 ? str.format_time(candle.o_time, 'H', 'America/New_York') : candleSet.settings.htf == '1M' ? str.format_time(candle.o_time, 'M', 'America/New_York') : ''
 
         candleSet.candles.unshift(candle)
 
         if candleSet.candles.size() > candleSet.settings.max_display
             Candle delCandle = array.pop(candleSet.candles)
-            box.delete(delCandle.body)
-            line.delete(delCandle.wick_up)
-            line.delete(delCandle.wick_down)
-            delCandle.dow_label.delete()
+            if not na(delCandle.body)
+                box.delete(delCandle.body)
+            if not na(delCandle.wick_up)
+                line.delete(delCandle.wick_up)
+            if not na(delCandle.wick_down)
+                line.delete(delCandle.wick_down)
+            if not na(delCandle.dow_label)
+                delCandle.dow_label.delete()
 
     candleSet
 
@@ -2864,6 +2894,29 @@ hcTraceLine(line ln, label lb, int x1, float y, int x2, color col, string sty, i
             label.set_text(lab, str.tostring(y))
     [l, lab]
 
+method DrawCandles(CandleSet candleSet) =>
+    for c in candleSet.candles
+        bool bull = c.c > c.o
+        float bTop = math.max(c.o, c.c)
+        float bBot = math.min(c.o, c.c)
+        color wickCol = bull ? hcs.bull_wick : hcs.bear_wick
+        if na(c.body)
+            c.body := box.new(bar_index, bTop, bar_index + 2, bBot, bull ? hcs.bull_border : hcs.bear_border, 1, bgcolor = bull ? hcs.bull_body : hcs.bear_body)
+            c.wick_up := line.new(bar_index + 1, c.h, bar_index, bTop, color = wickCol)
+            c.wick_down := line.new(bar_index + 1, bBot, bar_index, c.l, color = wickCol)
+        else
+            box.set_top(c.body, bTop)
+            box.set_bottom(c.body, bBot)
+            box.set_bgcolor(c.body, bull ? hcs.bull_body : hcs.bear_body)
+            box.set_border_color(c.body, bull ? hcs.bull_border : hcs.bear_border)
+            line.set_color(c.wick_up, wickCol)
+            line.set_color(c.wick_down, wickCol)
+            line.set_y1(c.wick_up, c.h)
+            line.set_y2(c.wick_up, bTop)
+            line.set_y1(c.wick_down, c.l)
+            line.set_y2(c.wick_down, bBot)
+    candleSet
+
 method Update(CandleSet candleSet, int offset, bool showTrace) =>
     if candleSet.candles.size() > 0
         Candle candle = candleSet.candles.first()
@@ -2874,20 +2927,9 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
         candle.c := close
         candle.c_idx := bar_index
 
-        bull = candle.c > candle.o
-
-        box.set_top(candle.body, candle.o)
-        box.set_bottom(candle.body, candle.c)
-        box.set_bgcolor(candle.body, bull ? hcs.bull_body : hcs.bear_body)
-        box.set_border_color(candle.body, bull ? hcs.bull_border : hcs.bear_border)
-        line.set_color(candle.wick_up, bull ? hcs.bull_wick : hcs.bear_wick)
-        line.set_color(candle.wick_down, bull ? hcs.bull_wick : hcs.bear_wick)
-        line.set_y1(candle.wick_up, candle.h)
-        line.set_y2(candle.wick_up, math.max(candle.o, candle.c))
-        line.set_y1(candle.wick_down, candle.l)
-        line.set_y2(candle.wick_down, math.min(candle.o, candle.c))
-
-        if barstate.isrealtime or barstate.islast
+        // all drawing work happens once, on the last bar
+        if barstate.islast
+            candleSet.DrawCandles()
             candleSet.Reorder(offset)
             if hcs.trace_show and showTrace
                 int lblX = box.get_right(candle.body)
@@ -2910,13 +2952,18 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
                     trace.l_l := lbL
     candleSet
 
+var array<bool> hc_valid = array.new<bool>(0)
+if barstate.isfirst
+    for s in hc_sets
+        hc_valid.push(hch.ValidTimeframe(s.settings.htf))
+
 int cnt = 0
 int last = hch.HTFEnabled()
 
 int offset = hcs.offset
 for i = 0 to hc_sets.size() - 1
     CandleSet cs = hc_sets.get(i)
-    if cs.settings.show and hch.ValidTimeframe(cs.settings.htf) and cnt < last
+    if cs.settings.show and hc_valid.get(i) and cnt < last
         bool showTrace = (hcs.trace_anchor == 'First Timeframe' and cnt == 0) or (hcs.trace_anchor == 'Last Timeframe' and cnt == last - 1)
         cs.UpdateTime(offset)
         cs.Monitor().Update(offset, showTrace).HCFindImbalance()
