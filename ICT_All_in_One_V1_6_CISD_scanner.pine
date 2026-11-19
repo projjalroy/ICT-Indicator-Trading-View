@@ -3312,7 +3312,7 @@ alertcondition(cd_fire_bull or cd_fire_bear, "CISD Any (Bull or Bear)", "CISD si
 
 //+------------------------------------------------------------------------------------------------------------+//
 //+--- CISD SCANNER (multi-timeframe table)                                                                 ---+//
-//+---  Runs the SAME CISD rules as above on the 1m / 3m / 5m / 15m data at the same time, whatever chart    ---+//
+//+---  Runs the SAME CISD rules as above on the 3m / 5m / 15m / 1H data at the same time, whatever chart    ---+//
 //+---  you are looking at, and lists the latest CISD of each timeframe in a table.                          ---+//
 //+---  Rules copied 1:1: delivery series, killzone filter, HTF FVG take/retest + HTF swing sweep, gate,     ---+//
 //+---  expiry, min series length, FVG in-range (daily ATR), invalidation. Settings come from the "CISD"     ---+//
@@ -3320,13 +3320,15 @@ alertcondition(cd_fire_bull or cd_fire_bear, "CISD Any (Bull or Bear)", "CISD si
 //+------------------------------------------------------------------------------------------------------------+//
 string cds_g   = "CISD Scanner"
 cds_show       = input.bool(true, "Show CISD scanner table", group = cds_g)
-cds_on1        = input.bool(true, "Scan 1m", inline = "cds_a", group = cds_g)
 cds_on3        = input.bool(true, "Scan 3m", inline = "cds_a", group = cds_g)
 cds_on5        = input.bool(true, "Scan 5m", inline = "cds_b", group = cds_g)
 cds_on15       = input.bool(true, "Scan 15m", inline = "cds_b", group = cds_g)
+cds_on60       = input.bool(true, "Scan 1H", inline = "cds_c", group = cds_g)
 cds_pos        = input.string("Top Right", "Table position", options = ["Top Left", "Top Center", "Top Right", "Middle Left", "Middle Right", "Bottom Left", "Bottom Center", "Bottom Right"], group = cds_g)
 cds_txt        = input.string("Small", "Text size", options = ["Tiny", "Small", "Normal"], group = cds_g)
 cds_fresh      = input.int(3, "FRESH = CISD printed within this many bars of its own timeframe", minval = 0, group = cds_g)
+
+string cds_sz = cds_txt == "Tiny" ? size.tiny : cds_txt == "Normal" ? size.normal : size.small
 
 cds_posv(string s) =>
     s == "Top Left" ? position.top_left : s == "Top Center" ? position.top_center : s == "Top Right" ? position.top_right : s == "Middle Left" ? position.middle_left : s == "Middle Right" ? position.middle_right : s == "Bottom Left" ? position.bottom_left : s == "Bottom Center" ? position.bottom_center : position.bottom_right
@@ -3335,6 +3337,15 @@ cds_posv(string s) =>
 cds_fvg_on(string tf) =>
     int s = timeframe.in_seconds(tf)
     (show_fvg_1 and timeframe.in_seconds(htf_1) == s) or (show_fvg_2 and timeframe.in_seconds(htf_2) == s) or (show_fvg_3 and timeframe.in_seconds(htf_3) == s) or (show_fvg_4 and timeframe.in_seconds(htf_4) == s) or (show_fvg_5 and timeframe.in_seconds(htf_5) == s) or (show_fvg_6 and timeframe.in_seconds(htf_6) == s)
+
+bool cds_f15  = cd_show and cd_use_fvg and cds_fvg_on("15")
+bool cds_f30  = cd_show and cd_use_fvg and cds_fvg_on("30")
+bool cds_f60  = cd_show and cd_use_fvg and cds_fvg_on("60")
+bool cds_f240 = cd_show and cd_use_fvg and cds_fvg_on("240")
+bool cds_f720 = cd_show and cd_use_fvg and cds_fvg_on("720")
+bool cds_f1d  = cd_show and cd_use_fvg and cds_fvg_on("1D")
+bool cds_f1w  = cd_show and cd_use_fvg and cds_fvg_on("1W")
+bool cds_sw_on = cd_show and cd_use_swing
 
 // evaluated INSIDE the HTF context: HTF swing (previous closed HTF bar) + HTF FVG (3 closed HTF candles) + the candle used for the mitigation test
 cds_slot() =>
@@ -3348,35 +3359,45 @@ cds_slot() =>
     int   x_ft = (x_br or x_bu) ? time[3] : na
     [x_ph, x_pl, x_pt, x_fo, x_fc, x_ft, open[1], close[1]]
 
-// copies a new HTF FVG / HTF swing into the pools (same as cd_ing_fvg / cd_ing_sw)
-cds_ing(array<CDPool> fv, array<CDPool> sw, array<int> lft, array<int> lph, array<int> lpl, int k, int sec, bool fvOn, bool swOn, float ph, float pl, int pt, float fo, float fc, int ft, float bo, float bc) =>
-    if fvOn and not na(fo) and not na(ft)
-        if ft > lft.get(k)
-            float x_mid = (fo + fc) / 2
-            bool  x_mit = false
-            if cds_mit_type_in == "Wick filled"
-                x_mit := fo <= fc ? low <= fo : high >= fo
-            else if cds_mit_type_in == "Body filled"
-                x_mit := fo < fc ? math.min(bo, bc) <= fo : math.max(bo, bc) >= fo
-            else if cds_mit_type_in == "Wick filled half"
-                x_mit := fo <= fc ? low <= x_mid : high >= x_mid
-            else if cds_mit_type_in == "Body filled half"
-                x_mit := fo <= fc ? math.min(bo, bc) <= x_mid : math.max(bo, bc) >= x_mid
-            // the indicator's own FVG list drops an FVG that is already mitigated (unless "Show Mitigated" is on), so it is not copied either
-            if not (x_mit and not cds_mit_show_in)
-                lft.set(k, ft)
-                fv.push(CDPool.new(math.max(fo, fc), math.min(fo, fc), x_mid, fo < fc, true, sec, bar_index, false, false, cd_tfname(sec) + " FVG"))
-                if fv.size() > 40
-                    fv.shift()
-    if swOn
-        if not na(ph) and pt != lph.get(k)
-            lph.set(k, pt)
-            sw.push(CDPool.new(ph, ph, ph, false, false, sec, bar_index, false, false, cd_tfname(sec) + " BSL"))
-        if not na(pl) and pt != lpl.get(k)
-            lpl.set(k, pt)
-            sw.push(CDPool.new(pl, pl, pl, true, false, sec, bar_index, false, false, cd_tfname(sec) + " SSL"))
-        if sw.size() > 40
-            sw.shift()
+// copies new HTF FVGs / HTF swings into the pools (same as cd_ing_fvg / cd_ing_sw); one pass over all aligned HTF slots of a scan
+cds_ing(array<CDPool> fv, array<CDPool> sw, array<int> lft, array<int> lph, array<int> lpl, array<int> secs, array<bool> fvOns, bool swOn, array<float> aph, array<float> apl, array<int> apt, array<float> afo, array<float> afc, array<int> aft, array<float> abo, array<float> abc) =>
+    for k = 0 to secs.size() - 1
+        float x_fo = afo.get(k)
+        float x_fc = afc.get(k)
+        int   x_ft = aft.get(k)
+        int   x_sec = secs.get(k)
+        if fvOns.get(k) and not na(x_fo) and not na(x_ft)
+            if x_ft > lft.get(k)
+                float x_mid = (x_fo + x_fc) / 2
+                float x_bo  = abo.get(k)
+                float x_bc  = abc.get(k)
+                bool  x_mit = false
+                if cds_mit_type_in == "Wick filled"
+                    x_mit := x_fo <= x_fc ? low <= x_fo : high >= x_fo
+                else if cds_mit_type_in == "Body filled"
+                    x_mit := x_fo < x_fc ? math.min(x_bo, x_bc) <= x_fo : math.max(x_bo, x_bc) >= x_fo
+                else if cds_mit_type_in == "Wick filled half"
+                    x_mit := x_fo <= x_fc ? low <= x_mid : high >= x_mid
+                else if cds_mit_type_in == "Body filled half"
+                    x_mit := x_fo <= x_fc ? math.min(x_bo, x_bc) <= x_mid : math.max(x_bo, x_bc) >= x_mid
+                // the indicator's own FVG list drops an FVG that is already mitigated (unless "Show Mitigated" is on), so it is not copied either
+                if not (x_mit and not cds_mit_show_in)
+                    lft.set(k, x_ft)
+                    fv.push(CDPool.new(math.max(x_fo, x_fc), math.min(x_fo, x_fc), x_mid, x_fo < x_fc, true, x_sec, bar_index, false, false, cd_tfname(x_sec) + " FVG"))
+                    if fv.size() > 40
+                        fv.shift()
+        if swOn
+            float x_ph = aph.get(k)
+            float x_pl = apl.get(k)
+            int   x_pt = apt.get(k)
+            if not na(x_ph) and x_pt != lph.get(k)
+                lph.set(k, x_pt)
+                sw.push(CDPool.new(x_ph, x_ph, x_ph, false, false, x_sec, bar_index, false, false, cd_tfname(x_sec) + " BSL"))
+            if not na(x_pl) and x_pt != lpl.get(k)
+                lpl.set(k, x_pt)
+                sw.push(CDPool.new(x_pl, x_pl, x_pl, true, false, x_sec, bar_index, false, false, cd_tfname(x_sec) + " SSL"))
+            if sw.size() > 40
+                sw.shift()
     0
 
 // the CISD state machine (same rules as the main CISD block), evaluated on the scanned timeframe's own bars
@@ -3509,21 +3530,6 @@ cds_run(array<CDPool> fvs, array<CDPool> sws, float atrv) =>
     [x_sg_dir, x_sg_time, x_sg_tag, na(x_sg_bar) ? -1 : bar_index - x_sg_bar]
 
 // ---- one wrapper per scanned timeframe (each pulls its own aligned HTFs from inside that timeframe) ----
-cds_m1() =>
-    var array<CDPool> w_fv  = array.new<CDPool>()
-    var array<CDPool> w_sw  = array.new<CDPool>()
-    var array<int>    w_lft = array.new<int>(3, 0)
-    var array<int>    w_lph = array.new<int>(3, 0)
-    var array<int>    w_lpl = array.new<int>(3, 0)
-    [a1, a2, a3, a4, a5, a6, a7, a8] = request.security(syminfo.tickerid, "15", cds_slot(), lookahead = barmerge.lookahead_on)
-    [b1, b2, b3, b4, b5, b6, b7, b8] = request.security(syminfo.tickerid, "240", cds_slot(), lookahead = barmerge.lookahead_on)
-    [c1, c2, c3, c4, c5, c6, c7, c8] = request.security(syminfo.tickerid, "1W", cds_slot(), lookahead = barmerge.lookahead_on)
-    float w_atr = request.security(syminfo.tickerid, "1D", ta.atr(14))
-    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, 0, timeframe.in_seconds("15"), cd_show and cd_use_fvg and cds_fvg_on("15"), cd_show and cd_use_swing, a1, a2, a3, a4, a5, a6, a7, a8)
-    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, 1, timeframe.in_seconds("240"), cd_show and cd_use_fvg and cds_fvg_on("240"), cd_show and cd_use_swing, b1, b2, b3, b4, b5, b6, b7, b8)
-    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, 2, timeframe.in_seconds("1W"), cd_show and cd_use_fvg and cds_fvg_on("1W"), cd_show and cd_use_swing, c1, c2, c3, c4, c5, c6, c7, c8)
-    cds_run(w_fv, w_sw, w_atr)
-
 cds_m3() =>
     var array<CDPool> w_fv  = array.new<CDPool>()
     var array<CDPool> w_sw  = array.new<CDPool>()
@@ -3533,8 +3539,7 @@ cds_m3() =>
     [a1, a2, a3, a4, a5, a6, a7, a8] = request.security(syminfo.tickerid, "30", cds_slot(), lookahead = barmerge.lookahead_on)
     [b1, b2, b3, b4, b5, b6, b7, b8] = request.security(syminfo.tickerid, "720", cds_slot(), lookahead = barmerge.lookahead_on)
     float w_atr = request.security(syminfo.tickerid, "1D", ta.atr(14))
-    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, 0, timeframe.in_seconds("30"), cd_show and cd_use_fvg and cds_fvg_on("30"), cd_show and cd_use_swing, a1, a2, a3, a4, a5, a6, a7, a8)
-    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, 1, timeframe.in_seconds("720"), cd_show and cd_use_fvg and cds_fvg_on("720"), cd_show and cd_use_swing, b1, b2, b3, b4, b5, b6, b7, b8)
+    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, array.from(1800, 43200), array.from(cds_f30, cds_f720), cds_sw_on, array.from(a1, b1), array.from(a2, b2), array.from(a3, b3), array.from(a4, b4), array.from(a5, b5), array.from(a6, b6), array.from(a7, b7), array.from(a8, b8))
     cds_run(w_fv, w_sw, w_atr)
 
 cds_m5() =>
@@ -3546,8 +3551,7 @@ cds_m5() =>
     [a1, a2, a3, a4, a5, a6, a7, a8] = request.security(syminfo.tickerid, "60", cds_slot(), lookahead = barmerge.lookahead_on)
     [b1, b2, b3, b4, b5, b6, b7, b8] = request.security(syminfo.tickerid, "1D", cds_slot(), lookahead = barmerge.lookahead_on)
     float w_atr = request.security(syminfo.tickerid, "1D", ta.atr(14))
-    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, 0, timeframe.in_seconds("60"), cd_show and cd_use_fvg and cds_fvg_on("60"), cd_show and cd_use_swing, a1, a2, a3, a4, a5, a6, a7, a8)
-    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, 1, timeframe.in_seconds("1D"), cd_show and cd_use_fvg and cds_fvg_on("1D"), cd_show and cd_use_swing, b1, b2, b3, b4, b5, b6, b7, b8)
+    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, array.from(3600, 86400), array.from(cds_f60, cds_f1d), cds_sw_on, array.from(a1, b1), array.from(a2, b2), array.from(a3, b3), array.from(a4, b4), array.from(a5, b5), array.from(a6, b6), array.from(a7, b7), array.from(a8, b8))
     cds_run(w_fv, w_sw, w_atr)
 
 cds_m15() =>
@@ -3559,15 +3563,21 @@ cds_m15() =>
     [a1, a2, a3, a4, a5, a6, a7, a8] = request.security(syminfo.tickerid, "240", cds_slot(), lookahead = barmerge.lookahead_on)
     [b1, b2, b3, b4, b5, b6, b7, b8] = request.security(syminfo.tickerid, "1W", cds_slot(), lookahead = barmerge.lookahead_on)
     float w_atr = request.security(syminfo.tickerid, "1D", ta.atr(14))
-    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, 0, timeframe.in_seconds("240"), cd_show and cd_use_fvg and cds_fvg_on("240"), cd_show and cd_use_swing, a1, a2, a3, a4, a5, a6, a7, a8)
-    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, 1, timeframe.in_seconds("1W"), cd_show and cd_use_fvg and cds_fvg_on("1W"), cd_show and cd_use_swing, b1, b2, b3, b4, b5, b6, b7, b8)
+    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, array.from(14400, 604800), array.from(cds_f240, cds_f1w), cds_sw_on, array.from(a1, b1), array.from(a2, b2), array.from(a3, b3), array.from(a4, b4), array.from(a5, b5), array.from(a6, b6), array.from(a7, b7), array.from(a8, b8))
     cds_run(w_fv, w_sw, w_atr)
 
-// ---- run the four scans (each one only when its tick is on) ----
-int    cds_d1  = 0
-int    cds_t1  = 0
-string cds_g1  = ""
-int    cds_a1  = -1
+cds_h1() =>
+    var array<CDPool> w_fv  = array.new<CDPool>()
+    var array<CDPool> w_sw  = array.new<CDPool>()
+    var array<int>    w_lft = array.new<int>(3, 0)
+    var array<int>    w_lph = array.new<int>(3, 0)
+    var array<int>    w_lpl = array.new<int>(3, 0)
+    [a1, a2, a3, a4, a5, a6, a7, a8] = request.security(syminfo.tickerid, "1D", cds_slot(), lookahead = barmerge.lookahead_on)
+    float w_atr = request.security(syminfo.tickerid, "1D", ta.atr(14))
+    cds_ing(w_fv, w_sw, w_lft, w_lph, w_lpl, array.from(86400), array.from(cds_f1d), cds_sw_on, array.from(a1), array.from(a2), array.from(a3), array.from(a4), array.from(a5), array.from(a6), array.from(a7), array.from(a8))
+    cds_run(w_fv, w_sw, w_atr)
+
+// ---- run the scans (each one only when its tick is on) ----
 int    cds_d3  = 0
 int    cds_t3  = 0
 string cds_g3  = ""
@@ -3580,13 +3590,11 @@ int    cds_d15 = 0
 int    cds_t15 = 0
 string cds_g15 = ""
 int    cds_a15 = -1
+int    cds_d60 = 0
+int    cds_t60 = 0
+string cds_g60 = ""
+int    cds_a60 = -1
 
-if cds_show and cds_on1
-    [r_d, r_t, r_g, r_a] = request.security(syminfo.tickerid, "1", cds_m1())
-    cds_d1 := r_d
-    cds_t1 := r_t
-    cds_g1 := r_g
-    cds_a1 := r_a
 if cds_show and cds_on3
     [r_d, r_t, r_g, r_a] = request.security(syminfo.tickerid, "3", cds_m3())
     cds_d3 := r_d
@@ -3605,6 +3613,12 @@ if cds_show and cds_on15
     cds_t15 := r_t
     cds_g15 := r_g
     cds_a15 := r_a
+if cds_show and cds_on60
+    [r_d, r_t, r_g, r_a] = request.security(syminfo.tickerid, "60", cds_h1())
+    cds_d60 := r_d
+    cds_t60 := r_t
+    cds_g60 := r_g
+    cds_a60 := r_a
 
 // ---- table ----
 cds_row(table t, int r, string tfn, bool is_chart, bool on, int dir, int tm, string tag, int age) =>
@@ -3622,26 +3636,67 @@ cds_row(table t, int r, string tfn, bool is_chart, bool on, int dir, int tm, str
         x_c3 := (age == 0 ? "NOW" : str.tostring(age) + " bars ago") + " · " + str.format_time(tm, "dd MMM HH:mm", gmt_tz)
         x_bg := dir > 0 ? (x_fresh ? cd_bull_col : color.new(cd_bull_col, 75)) : (x_fresh ? cd_bear_col : color.new(cd_bear_col, 75))
         x_fg := x_fresh ? color.white : chart.fg_color
-    table.cell(t, 0, r, tfn + (is_chart ? " ◄" : ""), text_color = chart.fg_color, bgcolor = color.new(color.gray, 85), text_size = cds_txt == "Tiny" ? size.tiny : cds_txt == "Normal" ? size.normal : size.small)
-    table.cell(t, 1, r, x_c1, text_color = x_fg, bgcolor = x_bg, text_size = cds_txt == "Tiny" ? size.tiny : cds_txt == "Normal" ? size.normal : size.small)
-    table.cell(t, 2, r, x_c2, text_color = x_fg, bgcolor = x_bg, text_size = cds_txt == "Tiny" ? size.tiny : cds_txt == "Normal" ? size.normal : size.small)
-    table.cell(t, 3, r, x_c3, text_color = x_fg, bgcolor = x_bg, text_size = cds_txt == "Tiny" ? size.tiny : cds_txt == "Normal" ? size.normal : size.small)
+    table.cell(t, 0, r, tfn + (is_chart ? " ◄" : ""), text_color = chart.fg_color, bgcolor = color.new(color.gray, 85), text_size = cds_sz)
+    table.cell(t, 1, r, x_c1, text_color = x_fg, bgcolor = x_bg, text_size = cds_sz)
+    table.cell(t, 2, r, x_c2, text_color = x_fg, bgcolor = x_bg, text_size = cds_sz)
+    table.cell(t, 3, r, x_c3, text_color = x_fg, bgcolor = x_bg, text_size = cds_sz)
     0
 
 var table cds_tbl = table.new(cds_posv(cds_pos), 4, 7, border_width = 1, frame_color = color.gray, frame_width = 1)
 
 if cds_show and barstate.islast
     int x_csec = timeframe.in_seconds()
-    string x_hs = cds_txt == "Tiny" ? size.tiny : cds_txt == "Normal" ? size.normal : size.small
-    table.cell(cds_tbl, 0, 0, "CISD SCANNER", text_color = chart.fg_color, bgcolor = color.new(color.gray, 60), text_size = x_hs)
+    table.cell(cds_tbl, 0, 0, "CISD SCANNER", text_color = chart.fg_color, bgcolor = color.new(color.gray, 60), text_size = cds_sz)
     table.merge_cells(cds_tbl, 0, 0, 3, 0)
-    table.cell(cds_tbl, 0, 1, "TF", text_color = chart.fg_color, bgcolor = color.new(color.gray, 70), text_size = x_hs)
-    table.cell(cds_tbl, 1, 1, "Last CISD", text_color = chart.fg_color, bgcolor = color.new(color.gray, 70), text_size = x_hs)
-    table.cell(cds_tbl, 2, 1, "HTF liquidity", text_color = chart.fg_color, bgcolor = color.new(color.gray, 70), text_size = x_hs)
-    table.cell(cds_tbl, 3, 1, "When (TF bars · time)", text_color = chart.fg_color, bgcolor = color.new(color.gray, 70), text_size = x_hs)
-    cds_row(cds_tbl, 2, "1m", x_csec == 60, cds_on1, cds_d1, cds_t1, cds_g1, cds_a1)
-    cds_row(cds_tbl, 3, "3m", x_csec == 180, cds_on3, cds_d3, cds_t3, cds_g3, cds_a3)
-    cds_row(cds_tbl, 4, "5m", x_csec == 300, cds_on5, cds_d5, cds_t5, cds_g5, cds_a5)
-    cds_row(cds_tbl, 5, "15m", x_csec == 900, cds_on15, cds_d15, cds_t15, cds_g15, cds_a15)
-    table.cell(cds_tbl, 0, 6, cd_kz_only ? (cd_kz ? "Killzone: IN" : "Killzone: OUT (no CISD can print)") : "Killzone filter: OFF", text_color = chart.fg_color, bgcolor = color.new(color.gray, 85), text_size = x_hs)
+    table.cell(cds_tbl, 0, 1, "TF", text_color = chart.fg_color, bgcolor = color.new(color.gray, 70), text_size = cds_sz)
+    table.cell(cds_tbl, 1, 1, "Last CISD", text_color = chart.fg_color, bgcolor = color.new(color.gray, 70), text_size = cds_sz)
+    table.cell(cds_tbl, 2, 1, "HTF liquidity", text_color = chart.fg_color, bgcolor = color.new(color.gray, 70), text_size = cds_sz)
+    table.cell(cds_tbl, 3, 1, "When (TF bars · time)", text_color = chart.fg_color, bgcolor = color.new(color.gray, 70), text_size = cds_sz)
+    array<string> x_nm = array.from("3m", "5m", "15m", "1H")
+    array<int>    x_cs = array.from(180, 300, 900, 3600)
+    array<bool>   x_on = array.from(cds_on3, cds_on5, cds_on15, cds_on60)
+    array<int>    x_dr = array.from(cds_d3, cds_d5, cds_d15, cds_d60)
+    array<int>    x_tm = array.from(cds_t3, cds_t5, cds_t15, cds_t60)
+    array<string> x_tg = array.from(cds_g3, cds_g5, cds_g15, cds_g60)
+    array<int>    x_ag = array.from(cds_a3, cds_a5, cds_a15, cds_a60)
+    for r = 0 to 3
+        cds_row(cds_tbl, r + 2, x_nm.get(r), x_csec == x_cs.get(r), x_on.get(r), x_dr.get(r), x_tm.get(r), x_tg.get(r), x_ag.get(r))
+    table.cell(cds_tbl, 0, 6, cd_kz_only ? (cd_kz ? "Killzone: IN" : "Killzone: OUT (no CISD can print)") : "Killzone filter: OFF", text_color = chart.fg_color, bgcolor = color.new(color.gray, 85), text_size = cds_sz)
     table.merge_cells(cds_tbl, 0, 6, 3, 6)
+
+
+//+------------------------------------------------------------------------------------------------------------+//
+//+--- HTF VERTICAL LINES (part of the HTF Candles settings)                                                ---+//
+//+---  Vertical lines at the start/end of the previous, current and next HTF candles, HTF aligned to the   ---+//
+//+---  chart timeframe: M1>15m  M3>30m  M5>1H  M15>4H  H1>1D  H4>1W  D>1M                                  ---+//
+//+------------------------------------------------------------------------------------------------------------+//
+string hv_g = 'HTF Candles'
+hv_show = input.bool(true, "✔ SHOW HTF vertical lines (aligned to chart timeframe)", tooltip = "M1>15m, M3>30m, M5>1H, M15>4H, H1>1D, H4>1W, D>1M. With 1 candle before and 1 after, a M5 chart at 9:30 gets lines at 8:00, 9:00, 10:00 and 11:00 (3 one-hour candles: previous, current, next).", group = hv_g)
+hv_prev = input.int(1, "HTF candles before the current one", minval = 0, maxval = 3, group = hv_g)
+hv_next = input.int(1, "HTF candles after the current one", minval = 0, maxval = 3, group = hv_g)
+hv_man  = input.timeframe("240", "HTF to use when the chart timeframe is not in the list above", group = hv_g)
+hv_col  = input.color(color.new(color.gray, 30), "Line color / style / width", inline = "hvs", group = hv_g)
+hv_sty  = input.string("Dashed", "", options = ["Solid", "Dashed", "Dotted"], inline = "hvs", group = hv_g)
+hv_wid  = input.int(1, "", minval = 1, maxval = 4, inline = "hvs", group = hv_g)
+
+int    hv_cs = timeframe.in_seconds()
+string hv_tf = hv_cs == 60 ? "15" : hv_cs == 180 ? "30" : hv_cs == 300 ? "60" : hv_cs == 900 ? "240" : hv_cs == 3600 ? "1D" : hv_cs == 14400 ? "1W" : hv_cs == 86400 ? "1M" : hv_man
+bool   hv_ok = hv_show and timeframe.in_seconds(hv_tf) > hv_cs
+
+[hv_t0, hv_tc, hv_t1, hv_t2, hv_t3] = request.security(syminfo.tickerid, hv_ok ? hv_tf : timeframe.period, [time, time_close, time[1], time[2], time[3]], lookahead = barmerge.lookahead_on)
+
+var array<line> hv_ln = array.new<line>()
+if hv_ok and barstate.islast
+    while hv_ln.size() > 0
+        line.delete(hv_ln.pop())
+    array<int> x_ts = array.new<int>()
+    array<int> x_hs = array.from(hv_t3, hv_t2, hv_t1, hv_t0)
+    for i = 3 - hv_prev to 3
+        x_ts.push(x_hs.get(i))
+    int x_step = timeframe.in_seconds(hv_tf) * 1000
+    for j = 0 to hv_next
+        x_ts.push(j == 0 ? hv_tc : hv_tf == "1M" ? timestamp(syminfo.timezone, year(hv_tc, syminfo.timezone), month(hv_tc, syminfo.timezone) + j, 1, 0, 0) : hv_tc + j * x_step)
+    for i = 0 to x_ts.size() - 1
+        int x_t = x_ts.get(i)
+        if not na(x_t)
+            hv_ln.push(line.new(x_t, low - syminfo.mintick, x_t, high + syminfo.mintick, xloc = xloc.bar_time, extend = extend.both, color = hv_col, style = hv_sty == "Solid" ? line.style_solid : hv_sty == "Dotted" ? line.style_dotted : line.style_dashed, width = hv_wid))
