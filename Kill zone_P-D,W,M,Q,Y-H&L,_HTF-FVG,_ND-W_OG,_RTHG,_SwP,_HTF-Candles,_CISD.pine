@@ -336,6 +336,36 @@ check_open(_line, _label) =>
 check_array(_arr) =>
     if _arr.size() > max_days
         _arr.pop().delete()
+// one killzone session (Asia / London / NY AM / NY Lunch / NY PM): same logic that used to be repeated 5 times
+kz_run(bool t, bool t1, array<box> bx, array<line> hl, array<line> ll, array<label> hb, array<label> lb, color bc, string txt, color tc, color lc, string hs, string ls, bool al) =>
+    var bool stop_hi = false
+    var bool stop_lo = false
+    if t and not t1
+        stop_hi := false
+        stop_lo := false
+        if show_kz
+            bx.unshift(box.new(bar_index, high, bar_index, low, border_color = bc, bgcolor = bc, text = show_kz_text ? txt : na, text_color = tc))
+        if show_pivots
+            hl.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = lc, width = s_width))
+            ll.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = lc, width = s_width))
+        if show_labels
+            hb.unshift(label.new(bar_index, high, hs, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
+            lb.unshift(label.new(bar_index, low, ls, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
+    else if t
+        adjust(show_pivots ? hl.get(0) : na, show_pivots ? ll.get(0) : na, show_labels ? hb.get(0) : na, show_labels ? lb.get(0) : na, show_labels, show_kz ? bx.get(0) : na)
+    else if hl.size() > 0
+        if not stop_hi
+            [r_, b_] = check_high(hl.get(0))
+            stop_hi := r_
+            if b_ and al
+                alert("Broke " + str.tostring(hs), alert.freq_once_per_bar)
+        if not stop_lo
+            [r_, b_] = check_low(ll.get(0))
+            stop_lo := r_
+            if b_ and al
+                alert("Broke " + str.tostring(ls), alert.freq_once_per_bar)
+    0
+
 // ---------------------------------------- Functions --------------------------------------------------
 
 
@@ -364,20 +394,10 @@ var h2_co = false
 var h3_co = false
 var h4_co = false
 
-var as_stop_hi = false
-var as_stop_lo = false
 
-var lo_stop_hi = false
-var lo_stop_lo = false
 
-var na_stop_hi = false
-var na_stop_lo = false
 
-var nl_stop_hi = false
-var nl_stop_lo = false
 
-var np_stop_hi = false
-var np_stop_lo = false
 
 // day_str = switch dayofweek
 
@@ -387,153 +407,23 @@ var np_stop_lo = false
 if timeframe.in_seconds("") <= timeframe.in_seconds(tf_limit)
     // Asia
     if use_asia
-        if t_as and not t_as[1]
-            as_stop_hi := false
-            as_stop_lo := false
-
-            if show_kz
-                as_box.unshift(box.new(bar_index, high, bar_index, low, border_color = as_box_color, bgcolor = as_box_color, text = show_kz_text ? asia_text : na, text_color = as_text_color))
-
-            if show_pivots
-                as_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = as_color, width = s_width))
-                as_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = as_color, width = s_width))
-
-            if show_labels
-                as_hi_label.unshift(label.new(bar_index, high, ash_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
-                as_lo_label.unshift(label.new(bar_index, low, asl_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
-        else if t_as
-            adjust(show_pivots ? as_hi_line.get(0) : na, show_pivots ? as_lo_line.get(0) : na, show_labels ? as_hi_label.get(0) : na, show_labels ? as_lo_label.get(0) : na, show_labels, show_kz ? as_box.get(0) : na)
-        else if not t_as and as_hi_line.size() > 0
-            if not as_stop_hi
-                [_r, _b] = check_high(as_hi_line.get(0))
-                as_stop_hi := _r
-                if _b and as_alert
-                    alert("Broke " + str.tostring(ash_str), alert.freq_once_per_bar)
-            if not as_stop_lo
-                [_r, _b] = check_low(as_lo_line.get(0))
-                as_stop_lo := _r
-                if _b and as_alert
-                    alert("Broke " + str.tostring(asl_str), alert.freq_once_per_bar)
+        kz_run(t_as, t_as[1], as_box, as_hi_line, as_lo_line, as_hi_label, as_lo_label, as_box_color, asia_text, as_text_color, as_color, ash_str, asl_str, as_alert)
         
     // London
     if use_london
-        if t_lo and not t_lo[1]
-            lo_stop_hi := false
-            lo_stop_lo := false
-
-            if show_kz
-                lo_box.unshift(box.new(bar_index, high, bar_index, low, border_color = lo_box_color, bgcolor = lo_box_color, text = show_kz_text ? london_text : na, text_color = lo_text_color))
-
-            if show_pivots
-                lo_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = lo_color, width = s_width))
-                lo_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = lo_color, width = s_width))
-
-            if show_labels
-                lo_hi_label.unshift(label.new(bar_index, high, loh_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
-                lo_lo_label.unshift(label.new(bar_index, low, lol_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
-        else if t_lo
-            adjust(show_pivots ? lo_hi_line.get(0) : na, show_pivots ? lo_lo_line.get(0) : na, show_labels ? lo_hi_label.get(0) : na, show_labels ? lo_lo_label.get(0) : na, show_labels, show_kz ? lo_box.get(0) : na)
-        else if not t_lo and lo_hi_line.size() > 0
-            if not lo_stop_hi
-                [_r, _b] = check_high(lo_hi_line.get(0))
-                lo_stop_hi := _r
-                if _b and lo_alert
-                    alert("Broke " + str.tostring(loh_str), alert.freq_once_per_bar)
-            if not lo_stop_lo
-                [_r, _b] = check_low(lo_lo_line.get(0))
-                lo_stop_lo := _r
-                if _b and lo_alert
-                    alert("Broke " + str.tostring(lol_str), alert.freq_once_per_bar)
+        kz_run(t_lo, t_lo[1], lo_box, lo_hi_line, lo_lo_line, lo_hi_label, lo_lo_label, lo_box_color, london_text, lo_text_color, lo_color, loh_str, lol_str, lo_alert)
                         
     // NY AM
     if use_nyam
-        if t_na and not t_na[1]
-            na_stop_hi := false
-            na_stop_lo := false
-
-            if show_kz
-                na_box.unshift(box.new(bar_index, high, bar_index, low, border_color = na_box_color, bgcolor = na_box_color, text = show_kz_text ? nyam_text : na, text_color = na_text_color))
-
-            if show_pivots
-                na_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = na_color, width = s_width))
-                na_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = na_color, width = s_width))
-
-            if show_labels
-                na_hi_label.unshift(label.new(bar_index, high, nah_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
-                na_lo_label.unshift(label.new(bar_index, low, nal_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
-        else if t_na
-            adjust(show_pivots ? na_hi_line.get(0) : na, show_pivots ? na_lo_line.get(0) : na, show_labels ? na_hi_label.get(0) : na, show_labels ? na_lo_label.get(0) : na, show_labels, show_kz ? na_box.get(0) : na)
-        else if not t_na and na_hi_line.size() > 0
-            if not na_stop_hi
-                [_r, _b] = check_high(na_hi_line.get(0))
-                na_stop_hi := _r
-                if _b and na_alert
-                    alert("Broke " + str.tostring(nah_str), alert.freq_once_per_bar)
-            if not na_stop_lo
-                [_r, _b] = check_low(na_lo_line.get(0))
-                na_stop_lo := _r
-                if _b and na_alert
-                    alert("Broke " + str.tostring(nal_str), alert.freq_once_per_bar)
+        kz_run(t_na, t_na[1], na_box, na_hi_line, na_lo_line, na_hi_label, na_lo_label, na_box_color, nyam_text, na_text_color, na_color, nah_str, nal_str, na_alert)
                         
     // NY Lunch
     if use_nylu
-        if t_nl and not t_nl[1]
-            nl_stop_hi := false
-            nl_stop_lo := false
-
-            if show_kz
-                nl_box.unshift(box.new(bar_index, high, bar_index, low, border_color = nl_box_color, bgcolor = nl_box_color, text = show_kz_text ? nylu_text : na, text_color = nl_text_color))
-
-            if show_pivots
-                nl_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = nl_color, width = s_width))
-                nl_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = nl_color, width = s_width))
-
-            if show_labels
-                nl_hi_label.unshift(label.new(bar_index, high, nlh_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
-                nl_lo_label.unshift(label.new(bar_index, low, nll_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
-        else if t_nl
-            adjust(show_pivots ? nl_hi_line.get(0) : na, show_pivots ? nl_lo_line.get(0) : na, show_labels ? nl_hi_label.get(0) : na, show_labels ? nl_lo_label.get(0) : na, show_labels, show_kz ? nl_box.get(0) : na)
-        else if not t_nl and nl_hi_line.size() > 0
-            if not nl_stop_hi
-                [_r, _b] = check_high(nl_hi_line.get(0))
-                nl_stop_hi := _r
-                if _b and nl_alert
-                    alert("Broke " + str.tostring(nlh_str), alert.freq_once_per_bar)
-            if not nl_stop_lo
-                [_r, _b] = check_low(nl_lo_line.get(0))
-                nl_stop_lo := _r
-                if _b and nl_alert
-                    alert("Broke " + str.tostring(nll_str), alert.freq_once_per_bar)
+        kz_run(t_nl, t_nl[1], nl_box, nl_hi_line, nl_lo_line, nl_hi_label, nl_lo_label, nl_box_color, nylu_text, nl_text_color, nl_color, nlh_str, nll_str, nl_alert)
                         
     // NY PM
     if use_nypm
-        if t_np and not t_np[1]
-            np_stop_hi := false
-            np_stop_lo := false
-
-            if show_kz
-                np_box.unshift(box.new(bar_index, high, bar_index, low, border_color = np_box_color, bgcolor = np_box_color, text = show_kz_text ? nypm_text : na, text_color = np_text_color))
-
-            if show_pivots
-                np_hi_line.unshift(line.new(bar_index, high, bar_index, high, style = s_style, color = np_color, width = s_width))
-                np_lo_line.unshift(line.new(bar_index, low, bar_index, low, style = s_style, color = np_color, width = s_width))
-
-            if show_labels
-                np_hi_label.unshift(label.new(bar_index, high, nph_str, color = transparent, textcolor = lb_color, style = label.style_label_down, size = lb_size))
-                np_lo_label.unshift(label.new(bar_index, low, npl_str, color = transparent, textcolor = lb_color, style = label.style_label_up, size = lb_size))
-        else if t_np
-            adjust(show_pivots ? np_hi_line.get(0) : na, show_pivots ? np_lo_line.get(0) : na, show_labels ? np_hi_label.get(0) : na, show_labels ? np_lo_label.get(0) : na, show_labels, show_kz ? np_box.get(0) : na) 
-        else if not t_np and np_hi_line.size() > 0
-            if not np_stop_hi
-                [_r, _b] = check_high(np_hi_line.get(0))
-                np_stop_hi := _r
-                if _b and np_alert
-                    alert("Broke " + str.tostring(nph_str), alert.freq_once_per_bar)
-            if not np_stop_lo
-                [_r, _b] = check_low(np_lo_line.get(0))
-                np_stop_lo := _r
-                if _b and np_alert
-                    alert("Broke " + str.tostring(npl_str), alert.freq_once_per_bar)
+        kz_run(t_np, t_np[1], np_box, np_hi_line, np_lo_line, np_hi_label, np_lo_label, np_box_color, nypm_text, np_text_color, np_color, nph_str, npl_str, np_alert)
                 
     // Vertical Lines
     if use_v1 and t_v1 and not t_v1[1]
@@ -1130,55 +1020,69 @@ string tooltip1 = "HTF FVG Settings:\n\tShow/Hide timeframe\n\tTimeframe to disp
 string tooltip2 = "Mitigated FVG Settings:\n\tShow/Hide mitigated (Applies to all).\n\tBullish FVG Color\n\tBearish FVG Color\n\tWhen to mark it as mitigated (Based on HTF timeframe, not current timeframe)"
 
 en_fvg   = input.bool(true, "✔ SHOW HTF FVGs (master switch for all 6 timeframes)")
+// ---- Auto HTF alignment (shared by HTF Candles, HTF FVGs and the CISD scanner; table documented at the HTF Candles section) ----
+int hc_chart_sec = timeframe.in_seconds()
+int hc_auto_n = (hc_chart_sec == 60 or hc_chart_sec == 300) ? 3 : (hc_chart_sec == 180 or hc_chart_sec == 900 or hc_chart_sec == 3600) ? 2 : (hc_chart_sec == 1800 or hc_chart_sec == 14400 or hc_chart_sec == 86400) ? 1 : 0
+string hc_auto_tf_1 = hc_chart_sec == 60 ? '15' : hc_chart_sec == 180 ? '30' : hc_chart_sec == 300 ? '60' : hc_chart_sec == 900 ? '240' : hc_chart_sec == 1800 ? '720' : hc_chart_sec == 3600 ? '1D' : hc_chart_sec == 14400 ? '1W' : '1M'
+string hc_auto_tf_2 = hc_chart_sec == 60 ? '240' : hc_chart_sec == 180 ? '720' : hc_chart_sec == 300 ? '1D' : hc_chart_sec == 900 ? '1W' : '1M'
+string hc_auto_tf_3 = hc_chart_sec == 300 ? '1M' : '1W'
+fvg_auto    = input.bool(true, "Auto HTF FVG by chart timeframe", tooltip = "ON: only the FVGs of the aligned HTFs for the current chart are shown (the 6 rows below are ignored).\nM1: 15m > 4H > 1W\nM3: 30m > 12H\nM5: 1H > 1D > 1M\nM15: 4H > 1W\nM30: 12H\nH1: 1D > 1M\nH4: 1W\nD1: 1M\n\nOFF (or any other chart timeframe): the 6 rows below are used as set.")
+bool fvg_auto_on = fvg_auto and hc_auto_n > 0
 show_fvg_1_in                   = input.bool(true, "", inline="htf1")
-show_fvg_1 = en_fvg and show_fvg_1_in
+show_fvg_1 = en_fvg and (fvg_auto_on ? hc_auto_n >= 1 : show_fvg_1_in)
 HTF_1_Settings.show         := show_fvg_1
-htf_1                        = input.timeframe("15", "", inline="htf1")
+htf_1_in = input.timeframe("15", "", inline="htf1")
+string htf_1 = fvg_auto_on ? hc_auto_tf_1 : htf_1_in
 HTF_1_Settings.htf          := htf_1
 HTF_1_Settings.color_bull   := input.color(color.new(#2962FF, 90), "", inline="htf1")
 HTF_1_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf1")
 HTF_1_Settings.max_count    := input.int(10, "", inline="htf1", tooltip = tooltip1)
 
 show_fvg_2_in                   = input.bool(true, "", inline="htf2")
-show_fvg_2 = en_fvg and show_fvg_2_in
+show_fvg_2 = en_fvg and (fvg_auto_on ? hc_auto_n >= 2 : show_fvg_2_in)
 HTF_2_Settings.show         := show_fvg_2
-htf_2                        = input.timeframe("60", "", inline="htf2")
+htf_2_in = input.timeframe("60", "", inline="htf2")
+string htf_2 = fvg_auto_on ? hc_auto_tf_2 : htf_2_in
 HTF_2_Settings.htf          := htf_2
 HTF_2_Settings.color_bull   := input.color(color.new(#2962FF, 90), "", inline="htf2")
 HTF_2_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf2")
 HTF_2_Settings.max_count    := input.int(10, "", inline="htf2", tooltip = tooltip1)
 
 show_fvg_3_in                   = input.bool(true, "", inline="htf3")
-show_fvg_3 = en_fvg and show_fvg_3_in
+show_fvg_3 = en_fvg and (fvg_auto_on ? hc_auto_n >= 3 : show_fvg_3_in)
 HTF_3_Settings.show         := show_fvg_3
-htf_3                        = input.timeframe("240", "", inline="htf3")
+htf_3_in = input.timeframe("240", "", inline="htf3")
+string htf_3 = fvg_auto_on ? hc_auto_tf_3 : htf_3_in
 HTF_3_Settings.htf          := htf_3
 HTF_3_Settings.color_bull   := input.color(color.new(#2962FF, 90), "", inline="htf3")
 HTF_3_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf3")
 HTF_3_Settings.max_count    := input.int(10, "", inline="htf3", tooltip = tooltip1)
 
 show_fvg_4_in                   = input.bool(true, "", inline="htf4")
-show_fvg_4 = en_fvg and show_fvg_4_in
+show_fvg_4 = en_fvg and (fvg_auto_on ? hc_auto_n >= 4 : show_fvg_4_in)
 HTF_4_Settings.show         := show_fvg_4
-htf_4                        = input.timeframe("1D", "", inline="htf4")
+htf_4_in = input.timeframe("1D", "", inline="htf4")
+string htf_4 = htf_4_in
 HTF_4_Settings.htf          := htf_4
 HTF_4_Settings.color_bull   := input.color(color.new(#2962FF, 90), "", inline="htf4")
 HTF_4_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf4")
 HTF_4_Settings.max_count    := input.int(5, "", inline="htf4", tooltip = tooltip1)
 
 show_fvg_5_in                   = input.bool(true, "", inline="htf5")
-show_fvg_5 = en_fvg and show_fvg_5_in
+show_fvg_5 = en_fvg and (fvg_auto_on ? hc_auto_n >= 5 : show_fvg_5_in)
 HTF_5_Settings.show         := show_fvg_5
-htf_5                        = input.timeframe("1W", "", inline="htf5")
+htf_5_in = input.timeframe("1W", "", inline="htf5")
+string htf_5 = htf_5_in
 HTF_5_Settings.htf          := htf_5
 HTF_5_Settings.color_bull   := input.color(color.new(#2962FF, 90), "", inline="htf5")
 HTF_5_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf5")
 HTF_5_Settings.max_count    := input.int(2, "", inline="htf5", tooltip = tooltip1)
 
 show_fvg_6_in                   = input.bool(true, "", inline="htf6")
-show_fvg_6 = en_fvg and show_fvg_6_in
+show_fvg_6 = en_fvg and (fvg_auto_on ? hc_auto_n >= 6 : show_fvg_6_in)
 HTF_6_Settings.show         := show_fvg_6
-htf_6                        = input.timeframe("1M", "", inline="htf6")
+htf_6_in = input.timeframe("1M", "", inline="htf6")
+string htf_6 = htf_6_in
 HTF_6_Settings.htf          := htf_6
 HTF_6_Settings.color_bull   := input.color(color.new(#2962FF, 90), "", inline="htf6")
 HTF_6_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf6")
@@ -1282,8 +1186,10 @@ method ProximityRange(Helper helper, tf) =>
     float range_high    = 0
     float range_low   = 0
     if timeframe.isseconds or timeframe.isminutes
-        range_high := close + daily
-        range_low  := close - daily
+        // scale the "near price" window to the FVG's own timeframe (a 1D FVG on a 1H chart is usually more than 1 daily ATR away and was filtered out)
+        float rng = timeframe.in_seconds(tf) >= 604800 ? monthly * 3 : timeframe.in_seconds(tf) >= 86400 ? monthly : daily
+        range_high := close + rng
+        range_low  := close - rng
     if timeframe.isdaily
         range_high := close + monthly*3
         range_low  := close - monthly*3
@@ -1391,7 +1297,7 @@ method AdjustMargins(ImbalanceStructure IS, int step) =>
                     line.delete((imb.line_middle))
     IS
 // FindImbalance looks for imbalances and, if found, adds it to the list
-method FindImbalance(ImbalanceStructure IS, o, h, l, c, t, o1, h1, l1, c1, t1, o2, h2, l2, c2, t2) =>
+method FindImbalance(ImbalanceStructure IS, o, h, l, c, h2, l2, t2) =>
     if IS.settings.show and (h < l2 or l > h2) 
         o = h < l2 ? l2 : h2
         c = h < l2 ? h : l
@@ -1402,12 +1308,12 @@ method FindImbalance(ImbalanceStructure IS, o, h, l, c, t, o1, h1, l1, c1, t1, o
                 IS.AddImbalance(o, c, t2)
     IS
 
-method Process(ImbalanceStructure IS, float o, float h, float l, float c, int t, float o1, float h1, float l1, float c1, int t1, float o2, float h2, float l2, float c2, int t2) =>
+method Process(ImbalanceStructure IS, float o, float h, float l, float c, float h2, float l2, int t2) =>
     var int visible = 0
     if IS.settings.show
         if not settings.ltf_hide or (settings.ltf_hide and helper.Validtimeframe(IS.settings.htf))
             if IS.settings.show
-                IS.FindImbalance(o, h, l, c, t, o1, h1, l1, c1, t1, o2, h2, l2, c2, t2)
+                IS.FindImbalance(o, h, l, c, h2, l2, t2)
                 visible := 1
         IS.CheckMitigated(o, h, l, c)
     visible
@@ -1418,33 +1324,33 @@ method Process(ImbalanceStructure IS, float o, float h, float l, float c, int t,
 daily                                   := request.security(syminfo.tickerid, "1D", ta.atr(14))
 monthly                                 := request.security(syminfo.tickerid, "1M", ta.atr(14))
 
-[o_1, h_1, l_1, c_1, t_1, o1_1, h1_1, l1_1, c1_1, t1_1, o2_1, h2_1, l2_1, c2_1, t2_1] = request.security(syminfo.tickerid, show_fvg_1 ? htf_1 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
-TF_1 := FVG_1.Process(o_1, h_1, l_1, c_1, t_1, o1_1, h1_1, l1_1, c1_1, t1_1, o2_1, h2_1, l2_1, c2_1, t2_1)
+[o_1, h_1, l_1, c_1, h2_1, l2_1, t2_1] = request.security(syminfo.tickerid, show_fvg_1 ? htf_1 : timeframe.period, [open[1], high[1], low[1], close[1], high[3], low[3], time[3]])
+TF_1 := FVG_1.Process(o_1, h_1, l_1, c_1, h2_1, l2_1, t2_1)
 if barstate.islast
     FVG_1.AdjustMargins(TF_1)
 
-[o_2, h_2, l_2, c_2, t_2, o1_2, h1_2, l1_2, c1_2, t1_2, o2_2, h2_2, l2_2, c2_2, t2_2] = request.security(syminfo.tickerid, show_fvg_2 ? htf_2 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
-TF_2 := TF_1 + FVG_2.Process(o_2, h_2, l_2, c_2, t_2, o1_2, h1_2, l1_2, c1_2, t1_2, o2_2, h2_2, l2_2, c2_2, t2_2)
+[o_2, h_2, l_2, c_2, h2_2, l2_2, t2_2] = request.security(syminfo.tickerid, show_fvg_2 ? htf_2 : timeframe.period, [open[1], high[1], low[1], close[1], high[3], low[3], time[3]])
+TF_2 := TF_1 + FVG_2.Process(o_2, h_2, l_2, c_2, h2_2, l2_2, t2_2)
 if barstate.islast
     FVG_2.AdjustMargins(TF_2)
 
-[o_3, h_3, l_3, c_3, t_3, o1_3, h1_3, l1_3, c1_3, t1_3, o2_3, h2_3, l2_3, c2_3, t2_3] = request.security(syminfo.tickerid, show_fvg_3 ? htf_3 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
-TF_3 := TF_2 + FVG_3.Process(o_3, h_3, l_3, c_3, t_3, o1_3, h1_3, l1_3, c1_3, t1_3, o2_3, h2_3, l2_3, c2_3, t2_3)
+[o_3, h_3, l_3, c_3, h2_3, l2_3, t2_3] = request.security(syminfo.tickerid, show_fvg_3 ? htf_3 : timeframe.period, [open[1], high[1], low[1], close[1], high[3], low[3], time[3]])
+TF_3 := TF_2 + FVG_3.Process(o_3, h_3, l_3, c_3, h2_3, l2_3, t2_3)
 if barstate.islast
     FVG_3.AdjustMargins(TF_3)
 
-[o_4, h_4, l_4, c_4, t_4, o1_4, h1_4, l1_4, c1_4, t1_4, o2_4, h2_4, l2_4, c2_4, t2_4] = request.security(syminfo.tickerid, show_fvg_4 ? htf_4 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
-TF_4 := TF_3 + FVG_4.Process(o_4, h_4, l_4, c_4, t_4, o1_4, h1_4, l1_4, c1_4, t1_4, o2_4, h2_4, l2_4, c2_4, t2_4)
+[o_4, h_4, l_4, c_4, h2_4, l2_4, t2_4] = request.security(syminfo.tickerid, show_fvg_4 ? htf_4 : timeframe.period, [open[1], high[1], low[1], close[1], high[3], low[3], time[3]])
+TF_4 := TF_3 + FVG_4.Process(o_4, h_4, l_4, c_4, h2_4, l2_4, t2_4)
 if barstate.islast
     FVG_4.AdjustMargins(TF_4)
 
-[o_5, h_5, l_5, c_5, t_5, o1_5, h1_5, l1_5, c1_5, t1_5, o2_5, h2_5, l2_5, c2_5, t2_5] = request.security(syminfo.tickerid, show_fvg_5 ? htf_5 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
-TF_5 := TF_4 + FVG_5.Process(o_5, h_5, l_5, c_5, t_5, o1_5, h1_5, l1_5, c1_5, t1_5, o2_5, h2_5, l2_5, c2_5, t2_5)
+[o_5, h_5, l_5, c_5, h2_5, l2_5, t2_5] = request.security(syminfo.tickerid, show_fvg_5 ? htf_5 : timeframe.period, [open[1], high[1], low[1], close[1], high[3], low[3], time[3]])
+TF_5 := TF_4 + FVG_5.Process(o_5, h_5, l_5, c_5, h2_5, l2_5, t2_5)
 if barstate.islast
     FVG_5.AdjustMargins(TF_5)
 
-[o_6, h_6, l_6, c_6, t_6, o1_6, h1_6, l1_6, c1_6, t1_6, o2_6, h2_6, l2_6, c2_6, t2_6] = request.security(syminfo.tickerid, show_fvg_6 ? htf_6 : timeframe.period, [open[1], high[1], low[1], close[1], time[1], open[2], high[2], low[2], close[2], time[2], open[3], high[3], low[3], close[3], time[3]])
-TF_6 := TF_5 + FVG_6.Process(o_6, h_6, l_6, c_6, t_6, o1_6, h1_6, l1_6, c1_6, t1_6, o2_6, h2_6, l2_6, c2_6, t2_6)
+[o_6, h_6, l_6, c_6, h2_6, l2_6, t2_6] = request.security(syminfo.tickerid, show_fvg_6 ? htf_6 : timeframe.period, [open[1], high[1], low[1], close[1], high[3], low[3], time[3]])
+TF_6 := TF_5 + FVG_6.Process(o_6, h_6, l_6, c_6, h2_6, l2_6, t2_6)
 if barstate.islast
     FVG_6.AdjustMargins(TF_6)
 
@@ -1623,7 +1529,6 @@ if linesize == 'Large'
     linewidthint
 
 var DEFAULT_LINE_WIDTH = linewidthint
-var DEFAULT_TAIL_WIDTH = linewidthint
 
 fontsize = size.small
 
@@ -1777,9 +1682,6 @@ f_LevelMerge(pricearray, labelarray, currentprice, currentlabel, currentcolor) =
         array.push(labelarray, currentlabel)
 
 
-var can_show_daily = is_daily_enabled and timeframe.isintraday
-var can_show_weekly = is_weekly_enabled and not timeframe.isweekly and not timeframe.ismonthly
-var can_show_monthly = is_monthly_enabled and not timeframe.ismonthly
 
 type Lvl
     bool on
@@ -1970,12 +1872,8 @@ fvgisDown(index) =>
     close[index] < open[index]
 
 
-fvgisObUp(index) =>
-    fvgisDown(index + 1) and fvgisUp(index) and close[index] > high[index + 1]
 
 
-fvgisObDown(index) =>
-    fvgisUp(index + 1) and fvgisDown(index) and close[index] < low[index + 1]
 
 
 bullishFvg = low[0] > high[2]
@@ -1999,7 +1897,6 @@ type gap
 var string nwogGroup = "New Week Opening Gap"
 var string ndogGroup = "New Day Opening Gap"
 var string generalSettings = "General Settings"
-var string openLineSettings = "Week & Day Open"
 
 bool showNWOG = input.bool(true, "", inline = "1", group = nwogGroup)
 string nwogLabel = input.string("NWOG", "", inline = "1", group = nwogGroup)
@@ -2239,7 +2136,6 @@ txtValignChoice = input.string(text.align_top, "Position:", options = [text.alig
 txtHalignChoice = input.string(text.align_center, "", options = [text.align_center, text.align_left, text.align_right], inline ='2', group = 'boxes & midlines')
 extendBoxRight = input.bool (false, "extend boxes & midlines right", inline ='3', group = 'boxes & midlines', tooltip = "recommend only using this setting with historical boxes to show = 1")
 
-extChoiceBox = extendBoxRight?extend.right:extend.none
 
 openOffset = input.int(0, "+/- offset (minutes) from 9:30am NY time", step = 5, group = 'time adjustment (for non-USA based Indices)', tooltip = "Added to support non-USA based indices. User can input their offset from NY time (UTC-4), then save settings (bottom left)\n\nI.e. you might try offset values of '-300' and '-300' for London based Indices; Untested, try it out for yourself.\n\n Note that the offset in minutes must be divisible into the timeframe you're plotting on, or nothing will display")
 closeOffset = input.int(0, "+/- offset (minutes) from 4:15pm NY time", step = 5, group = 'time adjustment (for non-USA based Indices)')
@@ -2253,7 +2149,6 @@ RTHcloseColor = input.color(color.new(color.blue, 10), "", inline ='2', group = 
 extendLineRight = input.bool (false, "extend lines right", inline ='3', group = 'RTH close lines & labels')
 linestyleRTH = input.string(line.style_dotted, "| style:", options = [line.style_solid, line.style_dotted, line.style_dashed, line.style_arrow_left, line.style_arrow_right, line.style_arrow_both], inline ='3', group = 'RTH close lines & labels')
 RTH_line_width = input.int(2, "| width", options = [1,2,3,4], inline ='3', group = 'RTH close lines & labels')
-extChoiceLine = extendLineRight?extend.right:extend.none
 _minute = 1000*60
 rthCloseA = ta.valuewhen(time_close == _16_00 + closeOffset*_minute, close, 0)
 rthCloseB = ta.valuewhen(time_close ==_16_15 + closeOffset *_minute, close, 0)
@@ -2545,20 +2440,16 @@ string group_trace              = "Trace  ━━━━━━━━━━━━�
 // ---- Auto HTF alignment by chart timeframe -------------------------------------------------
 //   M1  -> 15m > 4H > 1W
 //   M3  -> 30m > 12H
-//   M5  -> 1H  > 1D
+//   M5  -> 1H  > 1D > 1M
 //   M15 -> 4H  > 1W
 //   M30 -> 12H
-//   H1  -> 1D
+//   H1  -> 1D  > 1M
 //   H4  -> 1W
+//   D1  -> 1M
 // Any other chart timeframe falls back to the manual HTF 1-6 settings below.
 en_hc    = input.bool(true, "✔ SHOW HTF Candles (master switch)", group = 'HTF Candles')
-hc_auto = input.bool(true, 'Auto HTF by chart timeframe', group = 'HTF Candles', tooltip = 'M1: 15m > 4H > 1W\nM3: 30m > 12H\nM5: 1H > 1D\nM15: 4H > 1W\nM30: 12H\nH1: 1D\nH4: 1W\n\nOn any other chart timeframe (or when this is off) the manual HTF 1-6 settings below are used.')
-int hc_chart_sec = timeframe.in_seconds()
-int hc_auto_n = hc_chart_sec == 60 ? 3 : (hc_chart_sec == 180 or hc_chart_sec == 300 or hc_chart_sec == 900) ? 2 : (hc_chart_sec == 1800 or hc_chart_sec == 3600 or hc_chart_sec == 14400) ? 1 : 0
+hc_auto = input.bool(true, 'Auto HTF by chart timeframe', group = 'HTF Candles', tooltip = 'M1: 15m > 4H > 1W\nM3: 30m > 12H\nM5: 1H > 1D > 1M\nM15: 4H > 1W\nM30: 12H\nH1: 1D > 1M\nH4: 1W\nD1: 1M\n\nOn any other chart timeframe (or when this is off) the manual HTF 1-6 settings below are used.')
 bool hc_auto_on = hc_auto and hc_auto_n > 0
-string hc_auto_tf_1 = hc_chart_sec == 60 ? '15' : hc_chart_sec == 180 ? '30' : hc_chart_sec == 300 ? '60' : hc_chart_sec == 900 ? '240' : hc_chart_sec == 1800 ? '720' : hc_chart_sec == 3600 ? '1D' : '1W'
-string hc_auto_tf_2 = hc_chart_sec == 60 ? '240' : hc_chart_sec == 180 ? '720' : hc_chart_sec == 300 ? '1D' : '1W'
-string hc_auto_tf_3 = '1W'
 
 hc_man_show_1 = input.bool(true, 'HTF 1', inline = 'htf1', group = 'HTF Candles')
 hc_tf_1       = input.timeframe('15', '', inline = 'htf1', group = 'HTF Candles')
@@ -3338,7 +3229,6 @@ cds_fvg_on(string tf) =>
     int s = timeframe.in_seconds(tf)
     (show_fvg_1 and timeframe.in_seconds(htf_1) == s) or (show_fvg_2 and timeframe.in_seconds(htf_2) == s) or (show_fvg_3 and timeframe.in_seconds(htf_3) == s) or (show_fvg_4 and timeframe.in_seconds(htf_4) == s) or (show_fvg_5 and timeframe.in_seconds(htf_5) == s) or (show_fvg_6 and timeframe.in_seconds(htf_6) == s)
 
-bool cds_f15  = cd_show and cd_use_fvg and cds_fvg_on("15")
 bool cds_f30  = cd_show and cd_use_fvg and cds_fvg_on("30")
 bool cds_f60  = cd_show and cd_use_fvg and cds_fvg_on("60")
 bool cds_f240 = cd_show and cd_use_fvg and cds_fvg_on("240")
