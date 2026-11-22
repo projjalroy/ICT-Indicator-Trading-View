@@ -29,9 +29,9 @@ draw_lookback       = input.int(1000, "Drawing Lookback (bars)", 100, 5000, tool
 
 
 var g_KZ            = "Killzones"
-show_kz             = input.bool(true, "Show Killzone Boxes", inline = "KZ", group = g_KZ)
-show_kz_text        = input.bool(true, "Display Text", inline = "KZ", group = g_KZ)
-box_transparency    = input.int(70, "Box Transparency", 0, 100, group = g_KZ)
+show_kz             = input.bool(false, "Show Killzone Boxes", inline = "KZ", group = g_KZ)
+show_kz_text        = input.bool(false, "Display Text", inline = "KZ", group = g_KZ)
+box_transparency    = input.int(85, "Box Transparency", 0, 100, group = g_KZ)
 text_transparency   = input.int(50, "Text Transparency", 0, 100, group = g_KZ)
 
 use_asia            = input.bool(true, "", inline = "ASIA", group = g_KZ)
@@ -46,12 +46,12 @@ lo_color            = input.color(color.red, "", inline = "LONDON", group = g_KZ
 
 use_nyam            = input.bool(true, "", inline = "NYAM", group = g_KZ)
 nyam_text           = input.string("NY AM", "", inline = "NYAM", group = g_KZ)
-nyam                = input.session("0700-1000", "", inline = "NYAM", group = g_KZ)
+nyam                = input.session("0930-1100", "", inline = "NYAM", group = g_KZ)
 na_color            = input.color(#089981, "", inline = "NYAM", group = g_KZ)
 
 use_nylu            = input.bool(true, "", inline = "NYLU", group = g_KZ)
 nylu_text           = input.string("London Close", "", inline = "NYLU", group = g_KZ)
-nylu                = input.session("1100-1200", "", inline = "NYLU", group = g_KZ)
+nylu                = input.session("1200-1300", "", inline = "NYLU", group = g_KZ)
 nl_color            = input.color(color.yellow, "", inline = "NYLU", group = g_KZ)
 
 use_nypm            = input.bool(true, "", inline = "NYPM", group = g_KZ)
@@ -89,7 +89,7 @@ s_width             = input.int(1, "", inline = "L_0", group = g_LABELS)
 
 
 var g_DWM           = "DWM Open"
-en_dwm   = input.bool(true, "✔ SHOW this whole section (master switch)", group = g_DWM)
+en_dwm   = input.bool(false, "✔ SHOW this whole section (master switch)", group = g_DWM)
 dow_labels_in          = input.bool(true, "Day of Week Labels", inline = "DOW", group = g_DWM)
 dow_labels = en_dwm and dow_labels_in
 dow_yloc            = input.string('Bottom', "", options = ['Top', 'Bottom'], inline = "DOW", group = g_DWM)
@@ -130,7 +130,7 @@ use_h1_in              = input.bool(true, "", inline = "H1", group = g_OPEN)
 use_h1 = en_open and use_h1_in
 h1_text             = input.string("True Day Open", "", inline = "H1", group = g_OPEN)
 h1                  = input.session("0000-0001", "", inline = "H1", group = g_OPEN)
-h1_color            = input.color(color.black, "", inline = "H1", group = g_OPEN)
+h1_color            = input.color(#F57F17, "", inline = "H1", group = g_OPEN)
 
 use_h2_in              = input.bool(false, "", inline = "H2", group = g_OPEN)
 use_h2 = en_open and use_h2_in
@@ -150,12 +150,12 @@ h4_text             = input.string("14:00", "", inline = "H4", group = g_OPEN)
 h4                  = input.session("1400-1401", "", inline = "H4", group = g_OPEN)
 h4_color            = input.color(color.black, "", inline = "H4", group = g_OPEN)
 
-h_style             = input.string(defval = 'Dotted', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "H0", group = g_OPEN)
-h_width             = input.int(1, "", inline = "H0", group = g_OPEN)
+h_style             = input.string(defval = 'Dashed', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "H0", group = g_OPEN)
+h_width             = input.int(2, "", inline = "H0", group = g_OPEN)
 
 
 var g_VERTICAL      = "Timestamps"
-en_vert  = input.bool(true, "✔ SHOW this whole section (master switch)", group = g_VERTICAL)
+en_vert  = input.bool(false, "✔ SHOW this whole section (master switch)", group = g_VERTICAL)
 use_v1_in              = input.bool(false, "", inline = "V1", group = g_VERTICAL)
 use_v1 = en_vert and use_v1_in
 v1                  = input.session("0000-0001", "", inline = "V1", group = g_VERTICAL)
@@ -698,7 +698,7 @@ if not ms_unlimited
 //Input
 en_macro = input.bool(true, "✔ SHOW all ICT Macros (master switch)", group = 'Basic Setting')
 TimeZoneMode = input.string('UTC', 'Time Zone Mode', options = ['UTC', 'Session Local Time', 'Your Time Zone'],group = 'Basic Setting')
-YourTZ = input.string('UTC-4:00', 'Your Time Zone',group = 'Basic Setting')
+YourTZ = input.string('UTC-5:00', 'Your Time Zone',group = 'Basic Setting')
 Show_Time = input.bool(false,  'Show Range Time')
 Show_Macro_Labels = input.bool(false, 'Show Macro Labels (LDN 1, NY AM 1...)', group = 'Basic Setting')
 
@@ -1021,7 +1021,7 @@ if show_New_York_Last_Hour
 // Water mark -----------------
 
 //text inputs
-en_wm    = input.bool(true, "✔ SHOW watermark (title, subtitle, symbol info)", group = 'text')
+en_wm    = input.bool(false, "✔ SHOW watermark (title, subtitle, symbol info)", group = 'text')
 title = input.string('TRADER PK', 'Tittle', group='text')
 subtitle = input.string('HTF Bias| TIME  |  LQ  |  BB  |  FVG  | EXECUTION', 'Subtitle', group='text')
 //symbol info
@@ -1130,62 +1130,62 @@ string tooltip1 = "HTF FVG Settings:\n\tShow/Hide timeframe\n\tTimeframe to disp
 string tooltip2 = "Mitigated FVG Settings:\n\tShow/Hide mitigated (Applies to all).\n\tBullish FVG Color\n\tBearish FVG Color\n\tWhen to mark it as mitigated (Based on HTF timeframe, not current timeframe)"
 
 en_fvg   = input.bool(true, "✔ SHOW HTF FVGs (master switch for all 6 timeframes)")
-show_fvg_1_in                   = input.bool(false, "", inline="htf1")
+show_fvg_1_in                   = input.bool(true, "", inline="htf1")
 show_fvg_1 = en_fvg and show_fvg_1_in
 HTF_1_Settings.show         := show_fvg_1
-htf_1                        = input.timeframe("5", "", inline="htf1")
+htf_1                        = input.timeframe("15", "", inline="htf1")
 HTF_1_Settings.htf          := htf_1
-HTF_1_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf1")
-HTF_1_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf1")
-HTF_1_Settings.max_count    := input.int(20, "", inline="htf1", tooltip = tooltip1)
+HTF_1_Settings.color_bull   := input.color(color.new(color.blue, 90), "", inline="htf1")
+HTF_1_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf1")
+HTF_1_Settings.max_count    := input.int(10, "", inline="htf1", tooltip = tooltip1)
 
-show_fvg_2_in                   = input.bool(false, "", inline="htf2")
+show_fvg_2_in                   = input.bool(true, "", inline="htf2")
 show_fvg_2 = en_fvg and show_fvg_2_in
 HTF_2_Settings.show         := show_fvg_2
-htf_2                        = input.timeframe("15", "", inline="htf2")
+htf_2                        = input.timeframe("60", "", inline="htf2")
 HTF_2_Settings.htf          := htf_2
-HTF_2_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf2")
-HTF_2_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf2")
-HTF_2_Settings.max_count    := input.int(20, "", inline="htf2", tooltip = tooltip1)
+HTF_2_Settings.color_bull   := input.color(color.new(color.blue, 90), "", inline="htf2")
+HTF_2_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf2")
+HTF_2_Settings.max_count    := input.int(10, "", inline="htf2", tooltip = tooltip1)
 
 show_fvg_3_in                   = input.bool(true, "", inline="htf3")
 show_fvg_3 = en_fvg and show_fvg_3_in
 HTF_3_Settings.show         := show_fvg_3
-htf_3                        = input.timeframe("60", "", inline="htf3")
+htf_3                        = input.timeframe("240", "", inline="htf3")
 HTF_3_Settings.htf          := htf_3
-HTF_3_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf3")
-HTF_3_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf3")
-HTF_3_Settings.max_count    := input.int(20, "", inline="htf3", tooltip = tooltip1)
+HTF_3_Settings.color_bull   := input.color(color.new(color.blue, 90), "", inline="htf3")
+HTF_3_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf3")
+HTF_3_Settings.max_count    := input.int(10, "", inline="htf3", tooltip = tooltip1)
 
 show_fvg_4_in                   = input.bool(true, "", inline="htf4")
 show_fvg_4 = en_fvg and show_fvg_4_in
 HTF_4_Settings.show         := show_fvg_4
-htf_4                        = input.timeframe("240", "", inline="htf4")
+htf_4                        = input.timeframe("1D", "", inline="htf4")
 HTF_4_Settings.htf          := htf_4
-HTF_4_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf4")
-HTF_4_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf4")
+HTF_4_Settings.color_bull   := input.color(color.new(color.blue, 90), "", inline="htf4")
+HTF_4_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf4")
 HTF_4_Settings.max_count    := input.int(10, "", inline="htf4", tooltip = tooltip1)
 
 show_fvg_5_in                   = input.bool(true, "", inline="htf5")
 show_fvg_5 = en_fvg and show_fvg_5_in
 HTF_5_Settings.show         := show_fvg_5
-htf_5                        = input.timeframe("1D", "", inline="htf5")
+htf_5                        = input.timeframe("1W", "", inline="htf5")
 HTF_5_Settings.htf          := htf_5
-HTF_5_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf5")
-HTF_5_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf5")
-HTF_5_Settings.max_count    := input.int(10, "", inline="htf5", tooltip = tooltip1)
+HTF_5_Settings.color_bull   := input.color(color.new(color.blue, 90), "", inline="htf5")
+HTF_5_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf5")
+HTF_5_Settings.max_count    := input.int(4, "", inline="htf5", tooltip = tooltip1)
 
 show_fvg_6_in                   = input.bool(true, "", inline="htf6")
 show_fvg_6 = en_fvg and show_fvg_6_in
 HTF_6_Settings.show         := show_fvg_6
-htf_6                        = input.timeframe("1W", "", inline="htf6")
+htf_6                        = input.timeframe("1M", "", inline="htf6")
 HTF_6_Settings.htf          := htf_6
-HTF_6_Settings.color_bull   := input.color(color.new(color.green,90), "", inline="htf6")
-HTF_6_Settings.color_bear   := input.color(color.new(color.blue,90), "", inline="htf6")
+HTF_6_Settings.color_bull   := input.color(color.new(color.blue, 90), "", inline="htf6")
+HTF_6_Settings.color_bear   := input.color(color.new(#E91E63, 90), "", inline="htf6")
 HTF_6_Settings.max_count    := input.int(2, "", inline="htf6", tooltip = tooltip1)
 
 settings.ltf_hide               := input.bool(true, "Hide Lower Timeframes")
-settings.Border_show            := input.bool(true, "Show Border", group=Settings_Group, inline="4")
+settings.Border_show            := input.bool(false, "Show Border", group=Settings_Group, inline="4")
 bool cds_mit_show_in            = input.bool(false, "Show Mitigated", group=Settings_Group, inline="2")
 settings.mitigated_show         := cds_mit_show_in
 settings.mitigated_color_bull   := input.color(color.new(color.gray,95), "", group=Settings_Group, inline="2")
@@ -1495,7 +1495,7 @@ var is_intrarange_enabled = input.bool(defval=false, title='Prev H/L', group='4H
 var is_intram_enabled = input.bool(defval=false, title='Prev Mid', group='4H', inline='4H')
 IntraTextType = input.bool(defval=false, title='ShortHand', group='4H', inline='4Hsh')
 
-var is_daily_enabled = input.bool(defval=true, title='Open', group='Daily', inline='Daily')
+var is_daily_enabled = input.bool(defval=false, title='Open', group='Daily', inline='Daily')
 var is_dailyrange_enabled = input.bool(defval=true, title='Prev H/L', group='Daily', inline='Daily')
 var is_dailym_enabled = input.bool(defval=true, title='Prev Mid', group='Daily', inline='Daily')
 DailyTextType = input.bool(defval=false, title='ShortHand', group='Daily', inline='Dailysh')
@@ -1534,9 +1534,9 @@ Londont = input.session("0800-1600", "London Session")
 USt = input.session("1400-2100", "New York Session")
 Asiat = input.session("0000-0900", "Tokyo Session")
 
-DailyColor = input.color(title='', defval=#08bcd4, group='Daily', inline='Dailysh')
+DailyColor = input.color(title='', defval=#000000, group='Daily', inline='Dailysh')
 MondayColor = input.color(title='', defval=color.white, group='Monday Range', inline='Mondaysh')
-WeeklyColor = input.color(title='', defval=#fffcbc, group='Weekly', inline='Weeklysh')
+WeeklyColor = input.color(title='', defval=#880E4F, group='Weekly', inline='Weeklysh')
 MonthlyColor = input.color(title='', defval=#08d48c, group='Monthly', inline='Monthlysh')
 YearlyColor = input.color(title='', defval=color.red, group='Yearly', inline='Yearlysh')
 quarterlyColor = input.color(title='', defval=color.red, group='Quarterly', inline='Quarterlysh')
@@ -1906,8 +1906,8 @@ var string openLineSettings = "Week & Day Open"
 
 bool showNWOG = input.bool(true, "", inline = "1", group = nwogGroup)
 string nwogLabel = input.string("NWOG", "", inline = "1", group = nwogGroup)
-color nwogBg = input.color(color.rgb(164, 249, 73, 85), "", inline = "1", group = nwogGroup)
-bool showNwogCE = input.bool(false, "NWOG C.E.", tooltip = "C.E. - Consequent Encroachment or 'middle point' of any Gap or Inefficiency.", group = nwogGroup, inline = "2")
+color nwogBg = input.color(color.rgb(34, 34, 34, 85), "", inline = "1", group = nwogGroup)
+bool showNwogCE = input.bool(true, "NWOG C.E.", tooltip = "C.E. - Consequent Encroachment or 'middle point' of any Gap or Inefficiency.", group = nwogGroup, inline = "2")
 string nwogCEStyle = input.string("dotted", "", options = ["dotted", "dashed", "solid"], group = nwogGroup, inline = "2")
 color nwogCEColor = input.color(color.blue, "", group = nwogGroup, inline = "2")
 string nwogLabelXPosition = input.string('right', title = "Label", options = ["left", "center", "right"], inline = "5", group = nwogGroup)
@@ -1921,8 +1921,8 @@ bool extendToCurrentDayCloseTime = input.bool(true, "Extend to Current Day", too
 
 bool showNDOG = input.bool(true, "", inline = "2", group = ndogGroup)
 string ndogLabel = input.string("NDOG", "", inline = "2", group = ndogGroup)
-color ndogBg = input.color(color.rgb(255, 235, 59, 85), "", inline = "2", group = ndogGroup)
-bool showNdogCE = input.bool(false, "NDOG C.E.", tooltip = "C.E. - Consequent Encroachment or 'middle point' of any Gap or Inefficiency.", group = ndogGroup, inline = "3")
+color ndogBg = input.color(color.rgb(70, 70, 70, 85), "", inline = "2", group = ndogGroup)
+bool showNdogCE = input.bool(true, "NDOG C.E.", tooltip = "C.E. - Consequent Encroachment or 'middle point' of any Gap or Inefficiency.", group = ndogGroup, inline = "3")
 string ndogCEStyle = input.string("dotted", "", options = ["dotted", "dashed", "solid"], group = ndogGroup, inline = "3")
 color ndogCEColor = input.color(color.blue, "", group = ndogGroup, inline = "3")
 string ndogLabelXPosition = input.string('right', title = "Label", options = ["left", "center", "right"], inline = "5", group = ndogGroup)
@@ -2295,42 +2295,42 @@ string hc_auto_tf_2 = hc_chart_sec == 60 ? '240' : hc_chart_sec == 180 ? '720' :
 string hc_auto_tf_3 = '1W'
 
 hc_man_show_1 = input.bool(true, 'HTF 1', inline = 'htf1', group = 'HTF Candles')
-hc_tf_1       = input.timeframe('5', '', inline = 'htf1', group = 'HTF Candles')
+hc_tf_1       = input.timeframe('15', '', inline = 'htf1', group = 'HTF Candles')
 htf1.settings.show        := en_hc and (hc_auto_on ? hc_auto_n >= 1 : hc_man_show_1)
 htf1.settings.htf         := hc_auto_on ? hc_auto_tf_1 : hc_tf_1
 htf1.settings.max_display := input.int(10, '', inline = 'htf1', group = 'HTF Candles')
 
 hc_man_show_2 = input.bool(true, 'HTF 2', inline = 'htf2', group = 'HTF Candles')
-hc_tf_2       = input.timeframe('15', '', inline = 'htf2', group = 'HTF Candles')
+hc_tf_2       = input.timeframe('60', '', inline = 'htf2', group = 'HTF Candles')
 htf2.settings.show        := en_hc and (hc_auto_on ? hc_auto_n >= 2 : hc_man_show_2)
 htf2.settings.htf         := hc_auto_on ? hc_auto_tf_2 : hc_tf_2
 htf2.settings.max_display := input.int(10, '', inline = 'htf2', group = 'HTF Candles')
 
 hc_man_show_3 = input.bool(true, 'HTF 3', inline = 'htf3', group = 'HTF Candles')
-hc_tf_3       = input.timeframe('60', '', inline = 'htf3', group = 'HTF Candles')
+hc_tf_3       = input.timeframe('240', '', inline = 'htf3', group = 'HTF Candles')
 htf3.settings.show        := en_hc and (hc_auto_on ? hc_auto_n >= 3 : hc_man_show_3)
 htf3.settings.htf         := hc_auto_on ? hc_auto_tf_3 : hc_tf_3
 htf3.settings.max_display := input.int(10, '', inline = 'htf3', group = 'HTF Candles')
 
 hc_man_show_4 = input.bool(true, 'HTF 4', inline = 'htf4', group = 'HTF Candles')
-hc_tf_4       = input.timeframe('240', '', inline = 'htf4', group = 'HTF Candles')
+hc_tf_4       = input.timeframe('1D', '', inline = 'htf4', group = 'HTF Candles')
 htf4.settings.show        := en_hc and (hc_auto_on ? false : hc_man_show_4)
 htf4.settings.htf         := hc_tf_4
 htf4.settings.max_display := input.int(10, '', inline = 'htf4', group = 'HTF Candles')
 
 hc_man_show_5 = input.bool(true, 'HTF 5', inline = 'htf5', group = 'HTF Candles')
-hc_tf_5       = input.timeframe('1D', '', inline = 'htf5', group = 'HTF Candles')
+hc_tf_5       = input.timeframe('1W', '', inline = 'htf5', group = 'HTF Candles')
 htf5.settings.show        := en_hc and (hc_auto_on ? false : hc_man_show_5)
 htf5.settings.htf         := hc_tf_5
 htf5.settings.max_display := input.int(10, '', inline = 'htf5', group = 'HTF Candles')
 
 hc_man_show_6 = input.bool(true, 'HTF 6', inline = 'htf6', group = 'HTF Candles')
-hc_tf_6       = input.timeframe('1W', '', inline = 'htf6', group = 'HTF Candles')
+hc_tf_6       = input.timeframe('1M', '', inline = 'htf6', group = 'HTF Candles')
 htf6.settings.show        := en_hc and (hc_auto_on ? false : hc_man_show_6)
 htf6.settings.htf         := hc_tf_6
 htf6.settings.max_display := input.int(10, '', inline = 'htf6', group = 'HTF Candles')
 
-hcs.max_sets               := input.int(6, 'Limit to next HTFs only', minval = 1, maxval = 6, group = 'HTF Candles')
+hcs.max_sets               := input.int(1, 'Limit to next HTFs only', minval = 1, maxval = 6, group = 'HTF Candles')
 hcs.use_custom_daily       := input.bool(false, 'Custom daily candle open     ', inline='customdaily', group='HTF Candles')
 hcs.custom_daily           := input.string('Midnight', '', options=['Midnight', '8:30', '9:30'], inline='customdaily', group='HTF Candles')
 hcs.bull_body              := input.color(color.new(color.green, 10), 'Body  ', inline = 'body', group=group_style)
@@ -2340,7 +2340,7 @@ hcs.bear_border            := input.color(color.new(color.black, 10), '', inline
 hcs.bull_wick              := input.color(color.new(color.black, 10), 'Wick  ', inline = 'wick', group=group_style)
 hcs.bear_wick              := input.color(color.new(color.black, 10), '', inline = 'wick', group=group_style)
 
-hcs.offset                 := input.int(10, 'padding from current candles', minval = 1, group=group_style)
+hcs.offset                 := input.int(45, 'padding from current candles', minval = 1, group=group_style)
 hcs.buffer                 := input.int(1, 'space between candles', minval = 1, maxval = 4, group=group_style)
 hcs.htf_buffer             := input.int(10, 'space between Higher Timeframes', minval = 1, maxval = 10, group=group_style)
 hcs.width                  := input.int(1, 'Candle Width', minval = 1, maxval = 4, group=group_style) * 2
@@ -3406,10 +3406,10 @@ hv_wid  = input.int(1, "", minval = 1, maxval = 4, inline = "hvs", group = hv_g)
 //+------------------------------------------------------------------------------------------------------------+//
 string ps_g = "PSP (Precision Swing Point)"
 ps_show = input.bool(true, "✔ SHOW PSP (prints only at HTF FVG / HTF liquidity)", tooltip = "Bullish PSP = candle in a bullish HTF FVG or sweeping an HTF swing LOW (sell-side). Bearish PSP = candle in a bearish HTF FVG or sweeping an HTF swing HIGH (buy-side). Label shows: HTF, source, and how many of your correlated assets diverge. Marks are printed when the candle closes.", group = ps_g)
-ps_s1   = input.symbol("PEPPERSTONE:US500", "Asset 1", inline = "ps1", group = ps_g)
+ps_s1   = input.symbol("BINANCE:BTCUSDT.P", "Asset 1", inline = "ps1", group = ps_g)
 ps_e1   = input.bool(true, "On", inline = "ps1", group = ps_g)
 ps_i1   = input.bool(false, "Inverse", inline = "ps1", group = ps_g)
-ps_s2   = input.symbol("PEPPERSTONE:US30", "Asset 2", inline = "ps2", group = ps_g)
+ps_s2   = input.symbol("BINANCE:ETHUSDT.P", "Asset 2", inline = "ps2", group = ps_g)
 ps_e2   = input.bool(true, "On", inline = "ps2", group = ps_g)
 ps_i2   = input.bool(false, "Inverse", inline = "ps2", group = ps_g)
 ps_s3   = input.symbol("TVC:DXY", "Asset 3", inline = "ps3", group = ps_g)
@@ -3418,7 +3418,7 @@ ps_i3   = input.bool(true, "Inverse", inline = "ps3", group = ps_g)
 ps_min  = input.int(1, "Min. correlated assets that must diverge", minval = 1, maxval = 3, group = ps_g)
 ps_fvg  = input.bool(true, "Print at HTF FVG", inline = "psx", group = ps_g)
 ps_liq  = input.bool(true, "Print at HTF swing sweep", inline = "psx", group = ps_g)
-ps_max  = input.int(50, "Max PSP marks kept on chart", minval = 5, maxval = 150, group = ps_g)
+ps_max  = input.int(25, "Max PSP marks kept on chart", minval = 5, maxval = 150, group = ps_g)
 
 int    hv_cs = timeframe.in_seconds()
 string hv_tf = hv_cs == 60 ? "15" : hv_cs == 180 ? "30" : hv_cs == 300 ? "60" : hv_cs == 900 ? "240" : hv_cs == 3600 ? "1D" : hv_cs == 14400 ? "1W" : hv_cs == 86400 ? "1M" : hv_man
