@@ -1690,6 +1690,16 @@ type Lvl
     string txt
     color col
 
+// ---- SCALE GUARD: keeps the price scale on the candles (far-away zones / levels are not drawn) ----
+string sg_g   = "Scale Guard"
+sg_on         = input.bool(true, "✔ Keep the price scale on the candles", tooltip = "ON: lines, zones and labels that sit outside the price range of the last N bars (plus padding) are not drawn, so they can no longer squash the candles when the indicator is on. They appear again as soon as price gets near them.", group = sg_g)
+sg_n          = input.int(500, "Bars used to measure the price range", minval = 50, maxval = 4000, group = sg_g)
+sg_pad        = input.float(10.0, "Padding (% of that range)", minval = 0.0, step = 1.0, group = sg_g)
+float sg_hi0  = ta.highest(high, sg_n)
+float sg_lo0  = ta.lowest(low, sg_n)
+float sg_hi   = sg_hi0 + (sg_hi0 - sg_lo0) * sg_pad / 100
+float sg_lo   = sg_lo0 - (sg_hi0 - sg_lo0) * sg_pad / 100
+
 var array<line> lvlLines = array.new<line>(40)
 var array<label> lvlLabels = array.new<label>(40)
 
@@ -1741,7 +1751,17 @@ if barstate.islast
     limitRight = get_limit_right(DEFAULT_EXTEND_RIGHT)
     for i = 0 to levels.size() - 1
         Lvl lv = levels.get(i)
-        if lv.on
+        bool sg_vis = not sg_on or (lv.p <= sg_hi and lv.p >= sg_lo)
+        if lv.on and not sg_vis
+            line ln_h = lvlLines.get(i)
+            label lb_h = lvlLabels.get(i)
+            if not na(ln_h)
+                line.delete(ln_h)
+                lvlLines.set(i, na)
+            if not na(lb_h)
+                label.delete(lb_h)
+                lvlLabels.set(i, na)
+        if lv.on and sg_vis
             int x1 = displayStyle == 'Right Anchored' ? get_limit_right(radistance) : lv.t
             line ln = lvlLines.get(i)
             label lb = lvlLabels.get(i)
@@ -3368,3 +3388,37 @@ if hv_ok and barstate.islast
         int x_t = x_ts.get(i)
         if not na(x_t)
             hv_ln.push(line.new(x_t, low - syminfo.mintick, x_t, high + syminfo.mintick, xloc = xloc.bar_time, extend = extend.both, color = hv_col, style = hv_sty == "Solid" ? line.style_solid : hv_sty == "Dotted" ? line.style_dotted : line.style_dashed, width = hv_wid))
+
+// ---- SCALE GUARD (final pass): remove horizontal lines / boxes / labels that start in the past and lie outside the price range ----
+sg_past(float x) =>
+    x <= (x > 1.0e11 ? time : bar_index)
+
+if sg_on and barstate.islast
+    for i = math.max(line.all.size() - 1, 0) to 0
+        if line.all.size() == 0
+            break
+        line sg_ln = line.all.get(i)
+        float sg_y = line.get_y1(sg_ln)
+        if sg_y == line.get_y2(sg_ln) and sg_past(line.get_x1(sg_ln)) and (sg_y > sg_hi or sg_y < sg_lo)
+            line.delete(sg_ln)
+    for i = math.max(box.all.size() - 1, 0) to 0
+        if box.all.size() == 0
+            break
+        box sg_bx = box.all.get(i)
+        if sg_past(box.get_left(sg_bx))
+            float sg_t = box.get_top(sg_bx)
+            float sg_b = box.get_bottom(sg_bx)
+            if sg_b > sg_hi or sg_t < sg_lo
+                box.delete(sg_bx)
+            else
+                if sg_t > sg_hi
+                    box.set_top(sg_bx, sg_hi)
+                if sg_b < sg_lo
+                    box.set_bottom(sg_bx, sg_lo)
+    for i = math.max(label.all.size() - 1, 0) to 0
+        if label.all.size() == 0
+            break
+        label sg_lb = label.all.get(i)
+        float sg_ly = label.get_y(sg_lb)
+        if sg_ly > sg_hi or sg_ly < sg_lo
+            label.delete(sg_lb)
