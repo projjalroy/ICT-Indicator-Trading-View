@@ -2954,6 +2954,7 @@ cd_minrun       = input.int(2, "Min candles in delivery series", minval = 1, gro
 cd_max          = input.int(40, "Max CISD marks kept on chart", minval = 5, maxval = 150, group = cd_g)
 cd_bull_col     = input.color(#089981, "Bullish / Bearish colors", inline = "cdc", group = cd_g)
 cd_bear_col     = input.color(#f23645, "", inline = "cdc", group = cd_g)
+cd_sc_on        = input.bool(true, "Sweep + close confirmation (previous HTF candle)", tooltip = "ON: a CISD is only accepted in the NEXT candle of the first aligned HTF (M1: 15m, M3: 30m, M5: 1H, M15: 4H, M30: 12H, H1: 1D, H4: 1W) after an HTF candle that (1) took the previous HTF candle's high (bearish) / low (bullish), (2) took HTF liquidity (FVG / swing, per the liquidity gate) during that same candle, and (3) closed bearish (bullish) AND back below the previous high (above the previous low). OFF: the old liquidity gate is used.", group = cd_g)
 
 // ---- HTF alignment (same table as the HTF candles) ----
 bool   cd_auto = cd_align and hc_auto_n > 0
@@ -3108,6 +3109,49 @@ if cd_show and cd_sws.size() > 0
 cd_prune(cd_fvgs)
 cd_prune(cd_sws)
 
+// ---- sweep + close confirmation (HTF candle sweeps previous HTF high/low + takes liquidity + closes back; CISD allowed only in the NEXT HTF candle) ----
+bool   cd_hs_on = cd_sc_on and cd_on1
+int    cd_ht    = time(cd_tf1)
+var int    cd_hl_t    = na
+var float  cd_c_h     = na
+var float  cd_c_l     = na
+var float  cd_c_o     = na
+var float  cd_c_c     = na
+var float  cd_p_h     = na
+var float  cd_p_l     = na
+var bool   cd_c_lb    = false
+var bool   cd_c_ls    = false
+var string cd_c_tb    = ""
+var string cd_c_ts    = ""
+var bool   cd_arm_bear = false
+var bool   cd_arm_bull = false
+var string cd_arm_tb  = ""
+var string cd_arm_ts  = ""
+if cd_show and cd_hs_on
+    if not na(cd_ht) and cd_ht != cd_hl_t
+        cd_arm_bear := not na(cd_p_h) and cd_c_h > cd_p_h and cd_c_c < cd_c_o and cd_c_c < cd_p_h and cd_c_lb
+        cd_arm_bull := not na(cd_p_l) and cd_c_l < cd_p_l and cd_c_c > cd_c_o and cd_c_c > cd_p_l and cd_c_ls
+        cd_arm_tb := cd_c_tb
+        cd_arm_ts := cd_c_ts
+        cd_p_h := cd_c_h
+        cd_p_l := cd_c_l
+        cd_c_h := high
+        cd_c_l := low
+        cd_c_o := open
+        cd_c_lb := false
+        cd_c_ls := false
+        cd_hl_t := cd_ht
+    else
+        cd_c_h := math.max(nz(cd_c_h, high), high)
+        cd_c_l := math.min(nz(cd_c_l, low), low)
+    cd_c_c := close
+    if cd_gate_ok(cd_near_bear, cd_rf_bar == bar_index, cd_rs_bar == bar_index)
+        cd_c_lb := true
+        cd_c_tb := cd_rf_bar == bar_index ? cd_rf_src.tag : cd_rs_src.tag
+    if cd_gate_ok(cd_near_bull, cd_bf_bar == bar_index, cd_bs_bar == bar_index)
+        cd_c_ls := true
+        cd_c_ts := cd_bf_bar == bar_index ? cd_bf_src.tag : cd_bs_src.tag
+
 // ---- killzone filter ----
 bool cd_kz = not cd_kz_only or (use_asia and t_as) or (use_london and t_lo) or (use_nyam and t_na) or (use_nylu and t_nl) or (use_nypm and t_np)
 
@@ -3163,11 +3207,16 @@ var array<label> cd_labels = array.new<label>()
 var array<line>  cd_lines  = array.new<line>()
 
 if cd_show and cd_brk_bull
-    cd_fire_bull := cd_kz and cd_gate_ok(cd_near_bull, cd_bf_ok, cd_bs_ok)
+    cd_fire_bull := cd_kz and (cd_hs_on ? cd_arm_bull : cd_gate_ok(cd_near_bull, cd_bf_ok, cd_bs_ok))
     cd_bear_lvl  := na
     cd_bear_len  := 0
     if cd_fire_bull
-        string cd_src = cd_bf_ok ? cd_bf_src.tag : cd_bs_src.tag
+        string cd_src = ""
+        if cd_hs_on
+            cd_src := cd_arm_ts + " sweep"
+            cd_arm_bull := false
+        else
+            cd_src := cd_bf_ok ? cd_bf_src.tag : cd_bs_src.tag
         if cd_bf_ok
             cd_bf_src.used := true
         cd_bf_bar := na
@@ -3177,11 +3226,16 @@ if cd_show and cd_brk_bull
             cd_lines.push(line.new(x1 = cd_st_b, y1 = cd_lvl_b, x2 = bar_index + 3, y2 = cd_lvl_b, color = cd_bull_col, style = line.style_dashed, width = 1))
 
 if cd_show and cd_brk_bear
-    cd_fire_bear := cd_kz and cd_gate_ok(cd_near_bear, cd_rf_ok, cd_rs_ok)
+    cd_fire_bear := cd_kz and (cd_hs_on ? cd_arm_bear : cd_gate_ok(cd_near_bear, cd_rf_ok, cd_rs_ok))
     cd_bull_lvl  := na
     cd_bull_len  := 0
     if cd_fire_bear
-        string cd_src2 = cd_rf_ok ? cd_rf_src.tag : cd_rs_src.tag
+        string cd_src2 = ""
+        if cd_hs_on
+            cd_src2 := cd_arm_tb + " sweep"
+            cd_arm_bear := false
+        else
+            cd_src2 := cd_rf_ok ? cd_rf_src.tag : cd_rs_src.tag
         if cd_rf_ok
             cd_rf_src.used := true
         cd_rf_bar := na
