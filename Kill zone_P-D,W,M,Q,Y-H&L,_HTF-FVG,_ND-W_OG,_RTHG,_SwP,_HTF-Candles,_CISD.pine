@@ -11,7 +11,7 @@
 //  - macro text strings cached, swing labels + small FVG boxes limited to a recent window
 //  - CISD added (see the "CISD" input group at the bottom of the settings): killzone-only, HTF FVG take/retest + HTF swing sweep gated, HTF->LTF alignment as the HTF candles
 // All the ICT macro time_frame has been added to this version of the indicator for the convenience of the user who have done the precise course from us.
-indicator("All-in-One-ICT-v1.2 + RTH Gap + HTF Candles + CISD", max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=5000, overlay=true)
+indicator("All-in-One-ICT-v1.2 + HTF Candles + CISD", max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=5000, overlay=true)
 
 import cryptonnnite/helpers/1 as helpers
 
@@ -1762,101 +1762,6 @@ if barstate.islast
     if is_monthly_enabled and timeframe.isweekly and dayofweek(monthly_time) != dayofweek.monday
         line.set_x1(lvlLines.get(35), monthly_time - (weekly_time - weekly_time[1]))
 
-en_swing = input.bool(false, "✔ SHOW swing point circles")
-var inputHighlightIntermediates = input(true, 'Highlight Intermediate Swing Highs and Lows')
-var inputIntermediateSize = input.string('Tiny', 'Intermediate Swing Label Size', options=['Auto', 'Tiny', 'Small', 'Normal'])
-var inputShowShortTermSwings = input(false, 'Short Term Swings')
-var inputPivotBars = input(2, 'Pivot Candles')
-var highcolor = input.color(color.red, title="High", tooltip="select a color for ST/IT Highs")
-var lowcolor = input.color(color.green, title="Low", tooltip="select a color for ST/IT Lows")
-
-var intermediateLabelSize = inputIntermediateSize == 'Auto' ? size.auto : inputIntermediateSize == 'Tiny' ? size.tiny : inputIntermediateSize == 'Small' ? size.small : size.normal
-
-// Parallel arrays for Swing High Data
-var float[] swingHighs = array.new_float()
-var label[] swingHighLabels = array.new_label()
-var bool[] swingHighIsHigher = array.new_bool()
-var bool[] swingHighIsIntermediate = array.new_bool()
-
-// Parallel arrays for Swing Low Data
-var float[] swingLows = array.new_float()
-var label[] swingLowLabels = array.new_label()
-var bool[] swingLowIsLower = array.new_bool()
-var bool[] swingLowIsIntermediate = array.new_bool()
-
-// see last element pushed an an array
-array_peek(arrayId) =>
-    int arraySize = array.size(arrayId)
-    if arraySize > 0
-        array.get(arrayId, arraySize - 1)
-    else
-        na
-
-// v6: na can no longer be a bool, so the bool arrays get their own peek (empty -> false)
-array_peek_b(arrayId) =>
-    int arraySize = array.size(arrayId)
-    arraySize > 0 ? array.get(arrayId, arraySize - 1) : false
-
-// filters out swings that were not intermediate swings after all swings have been recorded.
-remove_short_term_swings() =>
-    if not inputShowShortTermSwings and barstate.islast
-        var swingHighCount = array.size(swingHighLabels)
-        var swingLowCount = array.size(swingLowLabels)
-
-        for i = 0 to swingHighCount - 1 by 1
-            if not array.get(swingHighIsIntermediate, i)
-                label.delete(array.get(swingHighLabels, i))
-
-        for i = 0 to swingLowCount - 1 by 1
-            if not array.get(swingLowIsIntermediate, i)
-                label.delete(array.get(swingLowLabels, i))
-
-
-// detect swing highs and lows
-swingHighPrice = ta.pivothigh(high, inputPivotBars, inputPivotBars)
-swingLowPrice = ta.pivotlow(low, inputPivotBars, inputPivotBars)
-
-
-if not na(swingHighPrice) and in_window
-    lastSwingHighPrice = array_peek(swingHighs)
-    isHigherHigh = swingHighPrice > lastSwingHighPrice
-    isLowerHigh = swingHighPrice < lastSwingHighPrice
-    swingLabel = label.new(bar_index[inputPivotBars], swingHighPrice, color=en_swing ? highcolor : color.new(highcolor, 100), yloc=yloc.price, style=label.style_circle, size=size.tiny)
-
-    // check if last swing high was intermediate
-    if isLowerHigh and array_peek_b(swingHighIsHigher)
-        // lower high after a higher high means the previous swing high was intermediate
-        if inputHighlightIntermediates
-            label.set_size(array_peek(swingHighLabels), intermediateLabelSize)
-            array.set(swingHighIsIntermediate, array.size(swingHighIsIntermediate) - 1, true)
-
-    // save swing
-    array.push(swingHighs, swingHighPrice)
-    array.push(swingHighLabels, swingLabel)
-    array.push(swingHighIsHigher, isHigherHigh)
-    array.push(swingHighIsIntermediate, false)  // can be filled in later, if a lower high forms next
-
-if not na(swingLowPrice) and in_window
-    lastSwingLowPrice = array_peek(swingLows)
-    isHigherLow = swingLowPrice > lastSwingLowPrice
-    isLowerLow = swingLowPrice < lastSwingLowPrice
-    swingLabel = label.new(bar_index[inputPivotBars], swingLowPrice, color=en_swing ? lowcolor : color.new(lowcolor, 100), yloc=yloc.price, style=label.style_circle, size=size.tiny)
-
-    // check if last swing low was intermediate
-    if isHigherLow and array_peek_b(swingLowIsLower)
-        // higher low after a lower low means the previous swing low was intermediate
-        if inputHighlightIntermediates
-            label.set_size(array_peek(swingLowLabels), intermediateLabelSize)
-            array.set(swingLowIsIntermediate, array.size(swingLowIsIntermediate) - 1, true)
-
-    // save swing
-    array.push(swingLows, swingLowPrice)
-    array.push(swingLowLabels, swingLabel)
-    array.push(swingLowIsLower, isLowerLow)
-    array.push(swingLowIsIntermediate, false)  // can be filled in later if a higher low forms next
-
-
-remove_short_term_swings()
 
 
 //IMBALANCE
@@ -2095,173 +2000,6 @@ if showNDOG and timeframe.isintraday
                 label.set_x(array.get(ndogLowLabel, i), dayOpeningGap.end)
 				
 //----------------------------------------------------------opening gapes intrigation--------------------------------------------
-
-//=====================================================================================
-// Regular Trading Hours GAP (RTH/ETH gap) - merged from @twingall's indicator
-// Gap between the 4:15pm (4pm on SPY) close and the 9:30am NY open. Index futures (ES, YM, NQ).
-// Boxes only appear on 15min or lower timeframes. Identifiers renamed where they clashed with ICT code.
-//=====================================================================================
-rthBoxMs = math.round(6.5*1000*3600)
-longDay = 24*1000*3600
-isSPY = str.tostring(syminfo.ticker) =="SPY"? true:false
-_16_00= timestamp('America/New_York', year, month, dayofmonth, 16, 00, 00)
-_16_15= timestamp('America/New_York', year, month, dayofmonth, 16, 15, 00)
-_9_30 = timestamp('America/New_York', year, month, dayofmonth, 9, 30, 00)
-colorNone = color.new(color.white, 100)
-en_rth   = input.bool(false, "✔ SHOW RTH gap boxes, midlines and RTH close line (master switch)", group = 'boxes & midlines')
-showBox_in = input.bool(true, "Standard Gap (4:15pm close - 9:30am open)| ", inline = '-3' , group = 'boxes & midlines', tooltip = "Shows the standard RTH gap from the close at 4:15pm to 9:30am open (New York Time)\n\n Note on SPY RTH close is 4pm; this will automatically adjust to this fact")
-showBox = en_rth and showBox_in
-boxColor = input.color(color.new(color.purple, 90), "Box", inline ='-3', group = 'boxes & midlines')
-borderColor=input.color(color.new(color.blue, 80), "Border", inline ='-3', group = 'boxes & midlines')
-showRthMidline_in = input.bool(true, "show midline", inline ='-2', group = 'boxes & midlines')
-showRthMidline = en_rth and showRthMidline_in
-rthMidCol = input.color(color.red, "", inline ='-2', group = 'boxes & midlines')
-rthMidStyle = input.string(line.style_dotted, "| style:", options = [line.style_solid, line.style_dotted, line.style_dashed, line.style_arrow_left, line.style_arrow_right, line.style_arrow_both], inline ='-2', group = 'boxes & midlines' )
-showRthMidLab = input.bool(true, "show label", inline ='-2', group = 'boxes & midlines')
-
-showHiLoBox_in = input.bool (false, "High-low Gap (4:15pm - 9:30am) |", inline ='-1', group = 'boxes & midlines', tooltip = "Shows the gap (as box) between high/low of final candle (the candle ending at 4:15pm) to the high/low of first RTH candle (the candle starting at 9:30am)\n\n(New York Time)\n\nNote that as you climb higher in timeframes, the last RTH candle and first RTH candle will be larger =>> wicks more likely to overlap =>> less gap boxes will appear. Ideal use is 5min timeframe or lower.")
-showHiLoBox = en_rth and showHiLoBox_in
-boxColor2 = input.color(color.new(color.green, 75), "Box", inline ='-1', group = 'boxes & midlines')
-borderColor2=input.color(color.new(color.red, 80), "Border", inline ='-1', group = 'boxes & midlines')
-showHiLoMidline_in = input.bool(false, "show midline", inline ='0', group = 'boxes & midlines')
-showHiLoMidline = en_rth and showHiLoMidline_in
-HiLoMidCol = input.color(color.green, "", inline ='0', group = 'boxes & midlines')
-HiLoMidStyle = input.string(line.style_dotted, "| style:", options = [line.style_solid, line.style_dotted, line.style_dashed, line.style_arrow_left, line.style_arrow_right, line.style_arrow_both], inline ='0', group = 'boxes & midlines' )
-showHiloMidLab = input.bool(true, "show label", inline ='0', group = 'boxes & midlines')
-
-boxesToShow =input.int(2, "historical Boxes & Midlines to show", inline = '1', group = 'boxes & midlines')
-showTxt =input.bool(true, "Box text", inline='2', group = 'boxes & midlines')
-boxTxtCol = input.color(color.new(color.gray, 30), "", inline ='2', group = 'boxes & midlines')
-txtValignChoice = input.string(text.align_top, "Position:", options = [text.align_top, text.align_center, text.align_bottom], inline ='2', group = 'boxes & midlines')
-txtHalignChoice = input.string(text.align_center, "", options = [text.align_center, text.align_left, text.align_right], inline ='2', group = 'boxes & midlines')
-extendBoxRight = input.bool (false, "extend boxes & midlines right", inline ='3', group = 'boxes & midlines', tooltip = "recommend only using this setting with historical boxes to show = 1")
-
-
-openOffset = input.int(0, "+/- offset (minutes) from 9:30am NY time", step = 5, group = 'time adjustment (for non-USA based Indices)', tooltip = "Added to support non-USA based indices. User can input their offset from NY time (UTC-4), then save settings (bottom left)\n\nI.e. you might try offset values of '-300' and '-300' for London based Indices; Untested, try it out for yourself.\n\n Note that the offset in minutes must be divisible into the timeframe you're plotting on, or nothing will display")
-closeOffset = input.int(0, "+/- offset (minutes) from 4:15pm NY time", step = 5, group = 'time adjustment (for non-USA based Indices)')
-
-linesToShow=input.int(2, "historical RTH close Lines & labels to show", group = 'RTH close lines & labels')
-showRTHcloseLine_in =input.bool(false, "show prev RTH close line", inline ='2', group = 'RTH close lines & labels')
-showRTHcloseLine = en_rth and showRTHcloseLine_in
-showRTHcloseLab = input.bool(false, "show price label", inline ='2', group = 'RTH close lines & labels')
-
-RTHcloseColor = input.color(color.new(color.blue, 10), "", inline ='2', group = 'RTH close lines & labels')
-extendLineRight = input.bool (false, "extend lines right", inline ='3', group = 'RTH close lines & labels')
-linestyleRTH = input.string(line.style_dotted, "| style:", options = [line.style_solid, line.style_dotted, line.style_dashed, line.style_arrow_left, line.style_arrow_right, line.style_arrow_both], inline ='3', group = 'RTH close lines & labels')
-RTH_line_width = input.int(2, "| width", options = [1,2,3,4], inline ='3', group = 'RTH close lines & labels')
-_minute = 1000*60
-rthCloseA = ta.valuewhen(time_close == _16_00 + closeOffset*_minute, close, 0)
-rthCloseB = ta.valuewhen(time_close ==_16_15 + closeOffset *_minute, close, 0)
-rthClose = isSPY ? rthCloseA : rthCloseB
-
-DayOfWeekStr(int _time)=>
-    string DoW = dayofweek(_time, 'America/New_York') == 2? "Mon":
-                 dayofweek(_time, 'America/New_York') == 3? "Tues":
-                 dayofweek(_time, 'America/New_York') == 4? "Weds":
-                 dayofweek(_time, 'America/New_York') == 5? "Thurs":
-                 dayofweek(_time, 'America/New_York') == 6? "Fri":na
-
-useNoPlotSession = input.bool(false, "Use no plot session (when 'extend right' is toggled on)", group = "no plot session", inline='1', tooltip = "boxes/lines/labels will stop painting through these hours..\n\nBut will resume painting to the last bar index outside of these hours\n\n only applies when 'extend boxes and lines right' is toggled on")
-inputSession1 = input.session('1600-0830', title='stop painting boxes/lines during these hours', group = "no plot session", inline='2')
-inSession1 = not na(time(timeframe.period, str.tostring(inputSession1), "America/New_York")) 
-barTime = timeframe.in_seconds(timeframe.period)*1000
-
-var int rthNoPlotMs = 0
-
-var box bx = na
-var array<box> boxArr = array.new<box>(0)
-var line lnRthMid = na
-var array<line> lnRthMidArr = array.new<line>(0)
-var label labRthMid =na
-var array<label> labRthMidArr = array.new<label>(0)
-rthMidVal = math.min(rthClose, open) + 0.5* math.abs(rthClose-open)
-if time == (_9_30 +openOffset *_minute) and showBox
-    bx:=box.new(time, rthClose, extendBoxRight?last_bar_time: time+rthBoxMs, open, xloc = xloc.bar_time,bgcolor = boxColor, border_color = borderColor, extend =extend.none , text =showTxt?"rth >>"+DayOfWeekStr(time):"", text_color = boxTxtCol, text_size = size.small, text_valign =txtValignChoice, text_halign = txtHalignChoice) //time+rthBoxMs
-    array.push(boxArr,bx)
-    if array.size(boxArr)>boxesToShow
-        box.delete(array.shift(boxArr))
-
-if time == (_9_30 +openOffset *_minute) and showRthMidline
-    lnRthMid:= line.new(time, rthMidVal, extendBoxRight?last_bar_time: time+rthBoxMs, rthMidVal, xloc = xloc.bar_time, color = rthMidCol, style = rthMidStyle, width = 1, extend = extend.none )
-    array.push(lnRthMidArr, lnRthMid)
-    labRthMid:= label.new(extendBoxRight?last_bar_time: time+rthBoxMs, rthMidVal, "mid >>"+DayOfWeekStr(time)+" = " + str.tostring(rthMidVal, format.mintick), xloc=xloc.bar_time, textcolor = showRthMidLab?rthMidCol:colorNone, style=label.style_none )
-    array.push(labRthMidArr, labRthMid)
-    if array.size(lnRthMidArr)>boxesToShow
-        line.delete(array.shift(lnRthMidArr))
-    if array.size(labRthMidArr)>boxesToShow
-        label.delete(array.shift(labRthMidArr))
-
-four15HiA = ta.valuewhen(time_close == _16_00 + closeOffset*_minute, high, 0)
-four15HiB = ta.valuewhen(time_close ==_16_15 + closeOffset *_minute, high, 0)
-four15Hi = isSPY ? four15HiA : four15HiB
-four15LoA = ta.valuewhen(time_close == _16_00 + closeOffset*_minute, low, 0)
-four15LoB = ta.valuewhen(time_close ==_16_15 + closeOffset *_minute, low, 0)
-four15Lo = isSPY ? four15LoA : four15LoB
-four15HiLo = low>four15Hi?four15Hi:high<four15Lo?four15Lo:na
-HiLo = low>four15Hi? low:high<four15Lo?high:na
-var box bx2 = na
-var array<box> boxArr2 = array.new<box>(0)
-var line lnHiLoMid = na
-var array<line> lnHiLoMidArr = array.new<line>(0)
-var label labHiLoMid =na
-var array<label> labHiLoMidArr = array.new<label>(0)
-HiLoMidVal = math.min(four15HiLo, HiLo) + 0.5* math.abs(four15HiLo-HiLo)
-if time == (_9_30 +openOffset *_minute) and showHiLoBox
-    bx2:=box.new(time, four15HiLo, extendBoxRight?last_bar_time: time+rthBoxMs,HiLo, xloc = xloc.bar_time,bgcolor = boxColor2, border_color = borderColor2, extend = extend.none , text =showTxt?"hilo >>"+DayOfWeekStr(time):"", text_color = boxTxtCol, text_size = size.small, text_valign =txtValignChoice, text_halign = txtHalignChoice)
-    array.push(boxArr2,bx2)
-    if array.size(boxArr2)>boxesToShow
-        box.delete(array.shift(boxArr2))
-if time == (_9_30 +openOffset *_minute) and showHiLoMidline
-    lnHiLoMid:= line.new(time, HiLoMidVal, extendBoxRight?last_bar_time: time+rthBoxMs, HiLoMidVal, xloc = xloc.bar_time, color = HiLoMidCol, style = HiLoMidStyle, width = 1, extend = extend.none)
-    array.push(lnHiLoMidArr, lnHiLoMid)
-    labHiLoMid:= label.new(extendBoxRight?last_bar_time: time+rthBoxMs, HiLoMidVal, "mid >>"+DayOfWeekStr(time)+" = " + str.tostring(HiLoMidVal, format.mintick), xloc=xloc.bar_time, textcolor = showHiloMidLab?HiLoMidCol:colorNone, style=label.style_none )
-    array.push(labHiLoMidArr, labHiLoMid)
-    if array.size(lnHiLoMidArr)>boxesToShow
-        line.delete(array.shift(lnHiLoMidArr))
-    if array.size(labHiLoMidArr)>boxesToShow
-        label.delete(array.shift(labHiLoMidArr))
-
-var line rthCloseLn = na
-var label lab1 =na
-var array<line> lineArr = array.new<line>(0)
-var array<label> labelArr = array.new<label>(0)
-condRTHclose = isSPY? session.islastbar_regular: (time ==_16_15 + closeOffset *_minute)
-if condRTHclose 
-    rthCloseLn:=line.new(time_close,isSPY?close:close[1], extendLineRight?last_bar_time:time+longDay, isSPY?close:close[1] , xloc=xloc.bar_time, color = showRTHcloseLine?RTHcloseColor:colorNone, extend =extend.none , style=linestyleRTH, width =RTH_line_width)
-    array.push(lineArr,rthCloseLn)
-    lab1:=label.new(extendLineRight?last_bar_time:time_close[1]+longDay, isSPY?close:close[1],DayOfWeekStr(time) + " rth close = "+ str.tostring(isSPY?close:close[1]), xloc=xloc.bar_time, textcolor = showRTHcloseLab?RTHcloseColor:colorNone, style=label.style_none)
-    array.push(labelArr,lab1)
-    
-    if array.size(lineArr)>linesToShow
-        line.delete(array.shift(lineArr))
-    if array.size(labelArr)>linesToShow
-        label.delete(array.shift(labelArr))
-
-if inSession1
-    rthNoPlotMs+=barTime
-if not inSession1 and inSession1[1]
-    rthNoPlotMs:=0
-// bgcolor(inSession1?color.new(color.red, 85):na)
-if useNoPlotSession
-    int noPlotEnd = last_bar_time - rthNoPlotMs
-    if extendBoxRight
-        for bx_ in boxArr
-            box.set_right(bx_, noPlotEnd)
-        for bx_ in boxArr2
-            box.set_right(bx_, noPlotEnd)
-        for ln_ in lnRthMidArr
-            line.set_x2(ln_, noPlotEnd)
-        for lb_ in labRthMidArr
-            label.set_x(lb_, noPlotEnd)
-        for ln_ in lnHiLoMidArr
-            line.set_x2(ln_, noPlotEnd)
-        for lb_ in labHiLoMidArr
-            label.set_x(lb_, noPlotEnd)
-    if extendLineRight
-        for ln_ in lineArr
-            line.set_x2(ln_, noPlotEnd)
-        for lb_ in labelArr
-            label.set_x(lb_, noPlotEnd)
 
 //=====================================================================================
 // HTF CANDLES (merged from "ICT HTF Candles (fadi)" by @fadizeidan, MPL 2.0)
@@ -2939,7 +2677,6 @@ cd_show         = input.bool(true, "Show CISD", group = cd_g)
 cd_kz_only      = input.bool(true, "Print only inside killzones", tooltip = "Uses the killzones switched on in the 'Killzones' group (same sessions and timezone as the boxes).", group = cd_g)
 cd_use_fvg      = input.bool(true, "Use HTF FVG", group = cd_g)
 cd_use_swing    = input.bool(true, "Use HTF swing highs / lows", group = cd_g)
-cd_use_ind_sw   = input.bool(false, "Also use the indicator's own swing points (chart TF)", tooltip = "Adds the swing points already drawn by this indicator (chart timeframe, 'Pivot Candles' setting) as extra liquidity. Only covers the last 'Drawing Lookback' bars.", group = cd_g)
 cd_align        = input.bool(true, "Auto HTF alignment by chart timeframe", tooltip = "M1: 15m > 4H > 1W\nM3: 30m > 12H\nM5: 1H > 1D\nM15: 4H > 1W\nM30: 12H\nH1: 1D\nH4: 1W\n\nOnly FVGs of these timeframes and swings of these timeframes count as liquidity. On any other chart timeframe (or when off) all enabled FVG timeframes and the manual swing timeframes below are used.", group = cd_g)
 cd_man_tf1      = input.timeframe("240", "Manual swing TF 1", group = cd_g)
 cd_man_tf2      = input.timeframe("1D", "Manual swing TF 2", group = cd_g)
@@ -3040,19 +2777,6 @@ if cd_show
     cd_ing_sw(cd_ph3, cd_pl3, cd_pt3, 2, cd_s3, cd_sw_req and cd_on3)
 
 // the indicator's own chart-timeframe swing points (optional)
-var int cd_nh = 0
-var int cd_nl = 0
-if cd_show and cd_use_ind_sw
-    if array.size(swingHighs) > cd_nh
-        float cd_vh = array.get(swingHighs, array.size(swingHighs) - 1)
-        cd_sws.push(CDPool.new(cd_vh, cd_vh, cd_vh, false, false, cd_c, bar_index, false, false, "Chart BSL"))
-    if array.size(swingLows) > cd_nl
-        float cd_vl = array.get(swingLows, array.size(swingLows) - 1)
-        cd_sws.push(CDPool.new(cd_vl, cd_vl, cd_vl, true, false, cd_c, bar_index, false, false, "Chart SSL"))
-    if cd_sws.size() > 40
-        cd_sws.shift()
-cd_nh := array.size(swingHighs)
-cd_nl := array.size(swingLows)
 
 // ---- liquidity interaction state ----
 var int    cd_bf_bar = na   // bullish FVG taken / retested
